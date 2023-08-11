@@ -9,6 +9,8 @@
 #endif
 #include "imp.h"
 
+extern const struct flash_driver abov32v2_flash;
+extern const struct flash_driver abov32v3_flash;
 extern const struct flash_driver aduc702x_flash;
 extern const struct flash_driver aducm360_flash;
 extern const struct flash_driver ambiqmicro_flash;
@@ -79,13 +81,14 @@ extern const struct flash_driver xcf_flash;
 extern const struct flash_driver xmc1xxx_flash;
 extern const struct flash_driver xmc4xxx_flash;
 extern const struct flash_driver rsl10_flash;
-extern const struct flash_driver abov32v2_flash;
 
 /**
  * The list of built-in flash drivers.
  * @todo Make this dynamically extendable with loadable modules.
  */
 static const struct flash_driver * const flash_drivers[] = {
+	&abov32v2_flash,
+	&abov32v3_flash,
 	&aduc702x_flash,
 	&aducm360_flash,
 	&ambiqmicro_flash,
@@ -156,7 +159,6 @@ static const struct flash_driver * const flash_drivers[] = {
 	&xmc4xxx_flash,
 	&w600_flash,
 	&rsl10_flash,
-	&abov32v2_flash,
 	NULL,
 };
 

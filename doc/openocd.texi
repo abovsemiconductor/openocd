@@ -6143,6 +6143,34 @@ flash bank $_FLASHNAME fespi 0x20000000 0 0 0 $_TARGETNAME
 
 @subsection Internal Flash (Microcontrollers)
 
+@deffn {Flash Driver} {abov32v2}
+The A31xxxx series, developed by ABOVSemiconductor, consists of microcontrollers
+based on the Cortex-M0+ architecture.
+These microcontrollers are equipped with internal flash memory.
+Specifically, the abov32v2 flash driver is designed to function with four specific models
+within this series: A31G21x, A31G22x, A31G31x, and A31G32x.
+When utilizing the setup command for this flash driver, only the target argument is necessary
+since all devices belonging to this family share the same memory layout.
+
+@example
+flash bank $_FLASHNAME abov32v2 0 0 0 0 $_TARGETNAME
+@end example
+@end deffn
+
+@deffn {Flash Driver} {abov32v3}
+The A34xxxx, A33xxxx series, developed by ABOVSemiconductor, consists of microcontrollers
+based on the Cortex-M3 or the Cortex-M4 architecture.
+These microcontrollers are equipped with internal flash memory.
+Specifically, the abov32v3 flash driver is designed to function with the specific models
+within this series: A34M41x.
+When utilizing the setup command for this flash driver, only the target argument is necessary
+since all devices belonging to this family share the same memory layout.
+
+@example
+flash bank $_FLASHNAME abov32v3 0 0 0 0 $_TARGETNAME
+@end example
+@end deffn
+
 @deffn {Flash Driver} {aduc702x}
 The ADUC702x analog microcontrollers from Analog Devices
 include internal flash and use ARM7TDMI cores.

@@ -12,6 +12,11 @@ SUBSYSTEM!="usb|tty|hidraw", GOTO="openocd_rules_end"
 
 # Please keep this list sorted by VID:PID
 
+# ABOVSemiconductor Starterkit
+ATTRS{idVendor}=="1a29", ATTRS{idProduct}=="a807", MODE="660", GROUP="plugdev", TAG+="uaccess"
+ATTRS{idVendor}=="1a29", ATTRS{idProduct}=="a806", MODE="660", GROUP="plugdev", TAG+="uaccess"
+ATTRS{idVendor}=="1a29", ATTRS{idProduct}=="a804", MODE="660", GROUP="plugdev", TAG+="uaccess"
+
 # opendous and estick
 ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="204f", MODE="660", GROUP="plugdev", TAG+="uaccess"
 
@@ -231,9 +236,5 @@ ATTRS{idVendor}=="c251", ATTRS{idProduct}=="2750", MODE="660", GROUP="plugdev", 
 
 # CMSIS-DAP compatible adapters
 ATTRS{product}=="*CMSIS-DAP*", MODE="660", GROUP="plugdev", TAG+="uaccess"
-
-# ABOVSemiconductor Starterkit
-ATTRS{idVendor}=="1a29", ATTRS{idProduct}=="a807", MODE="660", GROUP="plugdev", TAG+="uaccess"
-ATTRS{idVendor}=="1a29", ATTRS{idProduct}=="a806", MODE="660", GROUP="plugdev", TAG+="uaccess"
 
 LABEL="openocd_rules_end"

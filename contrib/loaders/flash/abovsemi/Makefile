@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 BIN2C = ../../../../src/helper/bin2char.sh
 
 CROSS_COMPILE ?= arm-none-eabi-
@@ -8,7 +10,7 @@ OBJDUMP=$(CROSS_COMPILE)objdump
 
 CFLAGS = -static -nostartfiles -mlittle-endian -Wa,-EL
 
-all: abov32v2.inc
+all: abov32v2.inc abov32v3.inc
 
 .PHONY: clean
 
