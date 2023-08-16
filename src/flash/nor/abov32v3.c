@@ -34,8 +34,8 @@
 #define A34M41X_FLASH_128KB_SRAM_32KB	0x34A012
 #define A34M41X_FLASH_128KB_SRAM_64KB	0x34A002
 
-#define A33M11X_FLASH_256KB				0x3A004
-#define A33M11X_FLASH_128KB				0x3A005
+#define A33M11X_FLASH_256KB				0x33A004
+#define A33M11X_FLASH_128KB				0x33A005
 
 #define ABOV_CHIP_ID_MASK				0xFFFFFF
 
@@ -54,17 +54,12 @@
 
 /* Code Flash Control Reg bit position */
 #define FLASH_CODE_CTRL_PROGRAM			BIT(0)
-#define FLASH_CODE_CTRL_ERASE_PAGE		BIT(1)
-#define FLASH_CODE_CTRL_ERASE_1KB		BIT(2)
-#define FLASH_CODE_CTRL_ERASE_4KB		BIT(3)
-#define FLASH_CODE_CTRL_ERASE_CHIP		BIT(4)
-#define FLASH_CODE_CTRL_WDONE_INTR		BIT(8)
-#define FLASH_CODE_CTRL_LOCK			BIT(31)
 
 /* Flash Status Reg bit position */
 #define FLASH_CODE_STAT_WBUSY			BIT(0)
 
 #define FLASH_CODE_1KB_SECTOR_BY_PAGE_COUNT		2
+#define FLASH_CODE_2KB_SECTOR_BY_PAGE_COUNT		4
 #define FLASH_CODE_4KB_SECTOR_BY_PAGE_COUNT		8
 
 #define FLASH_CODE_1KB_SECTOR_IDX_MASK	0x01
@@ -99,42 +94,102 @@
 #define SYSTEM_ACCESS_KEY_2				0x00000075
 
 enum erase_mode {
-	erase_mode_page,
-	erase_mode_1kb,
-	erase_mode_4kb,
-	erase_mode_chip,
+	erase_mode_page		=	BIT(0),
+	erase_mode_1kb		=	BIT(1),
+	erase_mode_2kb		=	BIT(2),
+	erase_mode_4kb		=	BIT(3),
+	erase_mode_chip		=	BIT(4),
 	erase_mode_max
+};
+
+struct abov32v3_erase {
+	uint32_t support_mode;
+	uint32_t chipset_bit;
+	uint32_t page_bit;
+	uint32_t sector_1kb_bit;
+	uint32_t sector_2kb_bit;
+	uint32_t sector_4kb_bit;
+	uint32_t min_sector_by_page_cnt;
 };
 
 static const struct abov32v3_dev {
 	uint32_t id;
 	const char *device_str;
+	uint32_t enable_bit;
 	uint32_t code_size;
 	uint32_t system_size;
 	uint32_t page_size;
 	uint32_t wprot_seg_size;
+	struct abov32v3_erase erase;
 } abov32v3_devices[] = {
 {
 	.id = A34M41X_FLASH_128KB_SRAM_32KB,
 	.device_str = "A34M414 : FLASH 128KB / SRAM 32KB ",
+	.enable_bit = 0,
 	.code_size = 0x20000,
 	.system_size = 0x0,
 	.page_size = 0x200,
 	.wprot_seg_size = 0x8000,
+	.erase.support_mode = erase_mode_page | erase_mode_1kb | erase_mode_4kb | erase_mode_chip,
+	.erase.chipset_bit = BIT(4),
+	.erase.page_bit = BIT(1),
+	.erase.sector_1kb_bit = BIT(2),
+	.erase.sector_4kb_bit = BIT(3),
+	.erase.min_sector_by_page_cnt = FLASH_CODE_1KB_SECTOR_BY_PAGE_COUNT
 }, {
 	.id = A34M41X_FLASH_256KB_SRAM_64KB,
 	.device_str = "A34M416 : FLASH 256KB / SRAM 64KB",
+	.enable_bit = 0,
 	.code_size = 0x40000,
 	.system_size = 0x0,
 	.page_size = 0x200,
 	.wprot_seg_size = 0x8000,
+	.erase.support_mode = erase_mode_page | erase_mode_1kb | erase_mode_4kb | erase_mode_chip,
+	.erase.chipset_bit = BIT(4),
+	.erase.page_bit = BIT(1),
+	.erase.sector_1kb_bit = BIT(2),
+	.erase.sector_4kb_bit = BIT(3),
+	.erase.min_sector_by_page_cnt = FLASH_CODE_1KB_SECTOR_BY_PAGE_COUNT
 }, {
 	.id = A34M41X_FLASH_512KB_SRAM_64KB,
-	.device_str = "A34M418 : FLASH 512B / SRAM 64KB",
+	.device_str = "A34M418 : FLASH 512KB / SRAM 64KB",
+	.enable_bit = 0,
 	.code_size = 0x80000,
 	.system_size = 0x0,
 	.page_size = 0x200,
 	.wprot_seg_size = 0x8000,
+	.erase.support_mode = erase_mode_page | erase_mode_1kb | erase_mode_4kb | erase_mode_chip,
+	.erase.chipset_bit = BIT(4),
+	.erase.page_bit = BIT(1),
+	.erase.sector_1kb_bit = BIT(2),
+	.erase.sector_4kb_bit = BIT(3),
+	.erase.min_sector_by_page_cnt = FLASH_CODE_1KB_SECTOR_BY_PAGE_COUNT
+}, {
+	.id = A33M11X_FLASH_128KB,
+	.device_str = "A33M114 : FLASH 128KB / SRAM 16KB",
+	.enable_bit = BIT(25),
+	.code_size = 0x20000,
+	.system_size = 0x0,
+	.page_size = 0x200,
+	.wprot_seg_size = 0x4000,
+	.erase.support_mode = erase_mode_page | erase_mode_2kb | erase_mode_chip,
+	.erase.chipset_bit = BIT(3),
+	.erase.page_bit = BIT(1),
+	.erase.sector_2kb_bit = BIT(2),
+	.erase.min_sector_by_page_cnt = FLASH_CODE_2KB_SECTOR_BY_PAGE_COUNT
+}, {
+	.id = A33M11X_FLASH_256KB,
+	.device_str = "A33M116 : FLASH 256KB / SRAM 16KB",
+	.enable_bit = BIT(25),
+	.code_size = 0x40000,
+	.system_size = 0x0,
+	.page_size = 0x200,
+	.wprot_seg_size = 0x4000,
+	.erase.support_mode = erase_mode_page | erase_mode_2kb | erase_mode_chip,
+	.erase.chipset_bit = BIT(3),
+	.erase.page_bit = BIT(1),
+	.erase.sector_2kb_bit = BIT(2),
+	.erase.min_sector_by_page_cnt = FLASH_CODE_2KB_SECTOR_BY_PAGE_COUNT
 }};
 
 struct abov32v3_flash_bank {
@@ -250,11 +305,11 @@ static int abov32v3_set_write_protect(struct flash_bank *bank, int set, uint32_t
 		reg &= ~prot;
 
 	/* last 4K area unprotection bit */
-	if ((bank->num_prot_blocks - 1) == last) {
+	if ((last > (bank->num_sectors - 5)) && ((bank->num_sectors - 1) <= last)) {
 		if (set)
 			reg &= ~FLASH_CODE_PROT_LAST_4K_MASK;
 		else
-			ret |= FLASH_CODE_PROT_LAST_4K_MASK;
+			reg |= FLASH_CODE_PROT_LAST_4K_MASK;
 	}
 
 	/* write protection bits */
@@ -273,6 +328,8 @@ err:
 
 static int abov32v3_set_erase(struct flash_bank *bank, uint32_t pageaddr, enum erase_mode mode)
 {
+	struct abov32v3_flash_bank *abov32v3_info = bank->driver_priv;
+	const struct abov32v3_erase *erase_info = &abov32v3_info->dev->erase;
 	struct target *target = bank->target;
 	int ret = ERROR_OK;
 
@@ -284,16 +341,19 @@ static int abov32v3_set_erase(struct flash_bank *bank, uint32_t pageaddr, enum e
 	/* select erase area mode */
 	switch (mode) {
 		case erase_mode_page:
-			ret = abov32v3_set_clear_reg(bank, FLASH_CODE_CTRL_REG, FLASH_CODE_CTRL_ERASE_PAGE, FLASH_ENABLE);
+			ret = abov32v3_set_clear_reg(bank, FLASH_CODE_CTRL_REG, erase_info->page_bit, FLASH_ENABLE);
 			break;
 		case erase_mode_chip:
-			ret = abov32v3_set_clear_reg(bank, FLASH_CODE_CTRL_REG, FLASH_CODE_CTRL_ERASE_CHIP, FLASH_ENABLE);
+			ret = abov32v3_set_clear_reg(bank, FLASH_CODE_CTRL_REG, erase_info->chipset_bit, FLASH_ENABLE);
 			break;
 		case erase_mode_1kb:
-			ret = abov32v3_set_clear_reg(bank, FLASH_CODE_CTRL_REG, FLASH_CODE_CTRL_ERASE_1KB, FLASH_ENABLE);
+			ret = abov32v3_set_clear_reg(bank, FLASH_CODE_CTRL_REG, erase_info->sector_1kb_bit, FLASH_ENABLE);
+			break;
+		case erase_mode_2kb:
+			ret = abov32v3_set_clear_reg(bank, FLASH_CODE_CTRL_REG, erase_info->sector_2kb_bit, FLASH_ENABLE);
 			break;
 		case erase_mode_4kb:
-			ret = abov32v3_set_clear_reg(bank, FLASH_CODE_CTRL_REG, FLASH_CODE_CTRL_ERASE_4KB, FLASH_ENABLE);
+			ret = abov32v3_set_clear_reg(bank, FLASH_CODE_CTRL_REG, erase_info->sector_4kb_bit, FLASH_ENABLE);
 			break;
 		default:
 			/* page erase mode */
@@ -345,6 +405,8 @@ FLASH_BANK_COMMAND_HANDLER(abov32v3_flash_bank_command)
 static int abov32v3_erase(struct flash_bank *bank, unsigned int first,
 		unsigned int last)
 {
+	struct abov32v3_flash_bank *abov32v3_info = bank->driver_priv;
+	const struct abov32v3_erase *erase_info = &abov32v3_info->dev->erase;
 	int ret = ERROR_OK;
 	uint32_t sec_cnt = 0;
 	uint32_t sec_offset = first;
@@ -360,7 +422,9 @@ static int abov32v3_erase(struct flash_bank *bank, unsigned int first,
 		ret = abov32v3_set_erase(bank, bank->sectors[0].offset, erase_mode_chip);
 	} else {
 		while (sec_cnt != 0) {
-			if ((sec_offset & FLASH_CODE_1KB_SECTOR_IDX_MASK) != 0x0 || sec_cnt == 1) {
+			if (erase_info->support_mode & erase_mode_page
+				&& (((sec_offset & (erase_info->min_sector_by_page_cnt - 1)) != 0x0)
+					 || (sec_cnt <= erase_info->min_sector_by_page_cnt - 1))) {
 #if defined DEBUG_LOG
 				LOG_INFO("page erase : sec_cnt remain=%d, sector num=%d", sec_cnt, sec_offset);
 #endif
@@ -370,8 +434,9 @@ static int abov32v3_erase(struct flash_bank *bank, unsigned int first,
 
 				sec_offset++;
 				sec_cnt--;
-			} else if ((sec_offset & FLASH_CODE_4KB_SECTOR_IDX_MASK) != 0x0
-					|| sec_cnt < FLASH_CODE_4KB_SECTOR_BY_PAGE_COUNT) {
+			} else if ((erase_info->support_mode & erase_mode_1kb)
+					&& ((sec_offset & FLASH_CODE_4KB_SECTOR_IDX_MASK) != 0x0
+					|| sec_cnt < FLASH_CODE_4KB_SECTOR_BY_PAGE_COUNT)) {
 #if defined DEBUG_LOG
 				LOG_INFO("1KB erase : sec_cnt remain=%d, sector num=%d", sec_cnt, sec_offset);
 #endif
@@ -381,7 +446,19 @@ static int abov32v3_erase(struct flash_bank *bank, unsigned int first,
 
 				sec_offset += FLASH_CODE_1KB_SECTOR_BY_PAGE_COUNT;
 				sec_cnt -= FLASH_CODE_1KB_SECTOR_BY_PAGE_COUNT;
-			} else if (sec_cnt >= FLASH_CODE_4KB_SECTOR_BY_PAGE_COUNT) {
+			} else if ((erase_info->support_mode & erase_mode_2kb)
+					&& (sec_cnt >= FLASH_CODE_2KB_SECTOR_BY_PAGE_COUNT)) {
+#if defined DEBUG_LOG
+				LOG_INFO("2KB erase : sec_cnt remain=%d, sector num=%d", sec_cnt, sec_offset);
+#endif
+				ret = abov32v3_set_erase(bank, bank->sectors[sec_offset].offset, erase_mode_2kb);
+				if (ret != ERROR_OK)
+					break;
+
+				sec_offset += FLASH_CODE_2KB_SECTOR_BY_PAGE_COUNT;
+				sec_cnt -= FLASH_CODE_2KB_SECTOR_BY_PAGE_COUNT;
+			} else if ((erase_info->support_mode & erase_mode_4kb)
+					&& (sec_cnt >= FLASH_CODE_4KB_SECTOR_BY_PAGE_COUNT)) {
 #if defined DEBUG_LOG
 				LOG_INFO("4KB erase : sec_cnt remain=%d, sector num=%d", sec_cnt, sec_offset);
 #endif
@@ -555,6 +632,13 @@ static int abov32v3_probe(struct flash_bank *bank)
 	target_write_u32(target, SYSTEM_ACCESS_REG, SYSTEM_ACCESS_KEY_2);
 	target_write_u32(target, SYSTEM_CLKSRC_REG, SYSTEM_CLKSRC_HSI);
 	target_write_u32(target, SYSTEM_CLKCR_REG, SYSTEM_CLKSEL_HSI);
+
+	/* some chipsets need to enable register write function */
+	if (abov32v3_info->dev->enable_bit) {
+		ret = abov32v3_set_clear_reg(bank, FLASH_CODE_CFG_REG, abov32v3_info->dev->enable_bit, FLASH_ENABLE);
+		if (ret != ERROR_OK)
+			goto err;
+	}
 
 	ret = abov32v3_get_chipset_id(bank, &chipset_id);
 	if (ret != ERROR_OK)

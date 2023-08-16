@@ -6162,7 +6162,7 @@ The A34xxxx, A33xxxx series, developed by ABOVSemiconductor, consists of microco
 based on the Cortex-M3 or the Cortex-M4 architecture.
 These microcontrollers are equipped with internal flash memory.
 Specifically, the abov32v3 flash driver is designed to function with the specific models
-within this series: A34M41x.
+within this series: A34M41x, A33M11x.
 When utilizing the setup command for this flash driver, only the target argument is necessary
 since all devices belonging to this family share the same memory layout.
 
