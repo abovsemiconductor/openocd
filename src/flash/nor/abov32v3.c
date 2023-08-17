@@ -633,13 +633,6 @@ static int abov32v3_probe(struct flash_bank *bank)
 	target_write_u32(target, SYSTEM_CLKSRC_REG, SYSTEM_CLKSRC_HSI);
 	target_write_u32(target, SYSTEM_CLKCR_REG, SYSTEM_CLKSEL_HSI);
 
-	/* some chipsets need to enable register write function */
-	if (abov32v3_info->dev->enable_bit) {
-		ret = abov32v3_set_clear_reg(bank, FLASH_CODE_CFG_REG, abov32v3_info->dev->enable_bit, FLASH_ENABLE);
-		if (ret != ERROR_OK)
-			goto err;
-	}
-
 	ret = abov32v3_get_chipset_id(bank, &chipset_id);
 	if (ret != ERROR_OK)
 		goto err;
@@ -648,6 +641,13 @@ static int abov32v3_probe(struct flash_bank *bank)
 	abov32v3_info->dev = abov32v3_find_device(chipset_id);
 	if (!abov32v3_info->dev)
 		return ERROR_FAIL;
+
+	/* some chipsets need to enable register write function */
+	if (abov32v3_info->dev->enable_bit) {
+		ret = abov32v3_set_clear_reg(bank, FLASH_CODE_CFG_REG, abov32v3_info->dev->enable_bit, FLASH_ENABLE);
+		if (ret != ERROR_OK)
+			goto err;
+	}
 
 	/* code area size */
 	bank->size = abov32v3_info->dev->code_size;
