@@ -6,12 +6,6 @@
  * @brief       Nor Flash Driver for ABOV32 V2
  *
  * Copyright 2023 ABOVSemiconductor Co.,Ltd. All rights reserved.
- *
- * This file is licensed under terms that are found in the LICENSE file
- * located at Document directory.
- * If this file is delivered or shared without applicable license terms,
- * the terms of the BSD-3-Clause license shall be applied.
- * Reference: https://opensource.org/licenses/BSD-3-Clause
  ******************************************************************************/
 
 #ifdef HAVE_CONFIG_H
@@ -20,143 +14,226 @@
 
 #include "imp.h"
 #include <helper/binarybuffer.h>
+#include <helper/bits.h>
 #include <target/algorithm.h>
 #include <target/armv7m.h>
 
 //#define DEBUG_LOG
 
-#define ABOV_CHIP_ID_REG		0x4000F004
+#define ABOV_CHIP_ID_REG				0x4000F004
 
-#define A31G31X_FLASH_128KB		0x1A003
-#define A31G31X_FLASH_64KB		0x1A004
-#define A31G31X_FLASH_256KB		0x1A005
+#define A31G31X_FLASH_128KB				0x1A003
+#define A31G31X_FLASH_64KB				0x1A004
+#define A31G31X_FLASH_256KB				0x1A005
 #define A31G31X_FLASH_CODE_BASE_ADDR	0x00000000
-#define A31G31X_FLASH_REG_ADDR		0x40000100
+#define A31G31X_FLASH_REG_ADDR			0x40000100
 
-#define A31G32X_FLASH_128KB		0x1A006
-#define A31G32X_FLASH_64KB		0x1A007
+#define A31G32X_FLASH_128KB				0x1A006
+#define A31G32X_FLASH_64KB				0x1A007
 #define A31G32X_FLASH_CODE_BASE_ADDR	0x00000000
-#define A31G32X_FLASH_REG_ADDR		0x40000100
+#define A31G32X_FLASH_REG_ADDR			0x40000100
 
-#define A31G21X_FLASH_64KB		0x1A008
-#define A31G21X_FLASH_32KB		0x1A009
+#define A31G21X_FLASH_64KB				0x1A008
+#define A31G21X_FLASH_32KB				0x1A009
 #define A31G21X_FLASH_CODE_BASE_ADDR	0x00000000
-#define A31G21X_FLASH_REG_ADDR		0x40000100
+#define A31G21X_FLASH_REG_ADDR			0x40000100
 
-#define A31G22X_FLASH_256KB		0x1A00A
-#define A31G22X_FLASH_128KB		0x1A00B
+#define A31G22X_FLASH_256KB				0x1A00A
+#define A31G22X_FLASH_128KB				0x1A00B
 
-#define A34M41X_FLASH_512KB		0x4A000
-#define A34M41X_FLASH_256KB		0x4A001
-#define A34M41X_FLASH_128KB		0x4A002
+#define A34M41X_FLASH_512KB				0x4A000
+#define A34M41X_FLASH_256KB				0x4A001
+#define A34M41X_FLASH_128KB				0x4A002
 
-#define A33G52X_FLASH_384KB		0x3A000
-#define A33G52X_FLASH_256KB		0x3A001
-#define A33G52X_FLASH_128KB		0x3A002
+#define A33G52X_FLASH_384KB				0x3A000
+#define A33G52X_FLASH_256KB				0x3A001
+#define A33G52X_FLASH_128KB				0x3A002
 
-#define A33M11X_FLASH_256KB		0x3A004
-#define A33M11X_FLASH_128KB		0x3A005
+#define A33M11X_FLASH_256KB				0x3A004
+#define A33M11X_FLASH_128KB				0x3A005
 
-#define ABOV_CHIP_ID_MASK		0xFFFFF
+#define ABOV_CHIP_ID_MASK				0xFFFFF
 
 /* Flash Mode */
-#define FLASH_PE_MODE_CMD1		0x0000005A
-#define FLASH_PE_MODE_CMD2		0x000000A5
-#define FLASH_TRIM_MODE_CMD1		0x000000A5
-#define FLASH_TRIM_MODE_CMD2		0x0000005A
-#define FLASH_AMBA_MODE_CMD1		0x00000081
-#define FLASH_AMBA_MODE_CMD2		0x00000028
-#define FLASH_PROT_MODE_CMD1		0x00000066
-#define FLASH_PROT_MODE_CMD2		0x00000099
+#define FLASH_PE_MODE_CMD1				0x0000005A
+#define FLASH_PE_MODE_CMD2				0x000000A5
+#define FLASH_TRIM_MODE_CMD1			0x000000A5
+#define FLASH_TRIM_MODE_CMD2			0x0000005A
+#define FLASH_AMBA_MODE_CMD1			0x00000081
+#define FLASH_AMBA_MODE_CMD2			0x00000028
+#define FLASH_PROT_MODE_CMD1			0x00000066
+#define FLASH_PROT_MODE_CMD2			0x00000099
 
 /* Flash Reg Offset */
-#define FLASH_REG_START_ADDR		0x40000100
-#define FLASH_MODE_REG			(FLASH_REG_START_ADDR | 0x00000004)
-#define FLASH_CR_REG			(FLASH_REG_START_ADDR | 0x00000008)
-#define FLASH_WPROT_REG			(FLASH_REG_START_ADDR | 0x00000034)
-#define FLASH_ADDR_REG			(FLASH_REG_START_ADDR | 0x0000000C)
-#define FLASH_WBUSY_REG			(FLASH_REG_START_ADDR | 0x00000018)
-#define FLASH_ABWPROT_REG		(FLASH_REG_START_ADDR | 0x00000050)
-#define FLASH_NBWPROT_REG		(FLASH_REG_START_ADDR | 0x00000054)
+#define FLASH_REG_START_ADDR			0x40000100
+#define FLASH_MODE_REG					(FLASH_REG_START_ADDR | 0x00000004)
+#define FLASH_CR_REG					(FLASH_REG_START_ADDR | 0x00000008)
+#define FLASH_WPROT_REG					(FLASH_REG_START_ADDR | 0x00000034)
+#define FLASH_ADDR_REG					(FLASH_REG_START_ADDR | 0x0000000C)
+#define FLASH_WBUSY_REG					(FLASH_REG_START_ADDR | 0x00000018)
+#define FLASH_ABWPROT_REG				(FLASH_REG_START_ADDR | 0x00000050)
+#define FLASH_NBWPROT_REG				(FLASH_REG_START_ADDR | 0x00000054)
 
 /* Flash Control Reg bit position */
-#define FLASH_CR_HVEN			0
-#define FLASH_CR_ERASE			1
-#define FLASH_CR_PROGRAM		2
-#define FLASH_CR_WADCK			3
-#define FLASH_CR_ADDR_LATCH		4
-#define FLASH_CR_ERASE_1KB		5
-#define FLASH_CR_ERASE_4KB		6
-#define FLASH_CR_ERASE_CHIP		7
-#define FLASH_CR_PROT_BOOT_BLOCK	8
-#define FLASH_CR_SELF_PROGRAM		23
+#define FLASH_CR_HVEN					BIT(0)
+#define FLASH_CR_ERASE					BIT(1)
+#define FLASH_CR_PROGRAM				BIT(2)
+#define FLASH_CR_WADCK					BIT(3)
+#define FLASH_CR_ADDR_LATCH				BIT(4)
+#define FLASH_CR_ERASE_1KB				BIT(5)
+#define FLASH_CR_ERASE_4KB				BIT(6)
+#define FLASH_CR_ERASE_CHIP				BIT(7)
+#define FLASH_CR_PROT_BOOT_BLOCK		BIT(8)
+#define FLASH_CR_SELF_PROGRAM			BIT(23)
+
+/* Flash Status Reg bit position */
+#define FLASH_WBUSY_REG_BUSY			BIT(0)
+#define FLASH_WBUSY_REG_CLEAR			BIT(7)
 
 #define FLASH_1KB_SECTOR_BY_PAGE_COUNT	2
 #define FLASH_4KB_SECTOR_BY_PAGE_COUNT	8
-#define FLASH_1KB_SECTOR_IDX_MASK	0x1
-#define FLASH_4KB_SECTOR_IDX_MASK	0x7
-#define FLASH_PROT_LOCK			0x00000001
-#define FLASH_PROT_UNLOCK		0x00000000
-#define FLASH_ENABLE			0x00000001
-#define FLASH_DISABLE			0x00000000
-#define FLASH_ERASE_TIMEOUT		100
-#define FLASH_WORD_ALIGN                4
+#define FLASH_1KB_SECTOR_IDX_MASK		0x01
+#define FLASH_4KB_SECTOR_IDX_MASK		0x07
+#define FLASH_PROT_LOCK					0x00000001
+#define FLASH_PROT_UNLOCK				0x00000000
+#define FLASH_ENABLE					0x00000001
+#define FLASH_DISABLE					0x00000000
+#define FLASH_ERASE_TIMEOUT				100
+#define FLASH_WORD_ALIGN				4
 
 /* Flash Active/Non-active write protection disable */
-#define FLASH_ABWPROT_DISABLE           0xAAB00000
-#define FLASH_NBWPROT_DISABLE		0x55B00000
+#define FLASH_ABWPROT_DISABLE			0xAAB00000
+#define FLASH_NBWPROT_DISABLE			0x55B00000
 
 /* Watchdog Reg */
-#define WATCHDOG_CR_REG			0x40001A00
-#define WATCHDOG_DISABLE                0x5A6995A0
+#define WATCHDOG_CR_REG					0x40001A00
+#define WATCHDOG_DISABLE				0x5A6995A0
 
 /* System Clock Reg addr */
-#define SYSTEM_CLKSRC_REG		0x40000040
-#define SYSTEM_CLKCR_REG                0x40000044
+#define SYSTEM_CLKSRC_REG				0x40000040
+#define SYSTEM_CLKCR_REG				0x40000044
 
-#define SYSTEM_CLKSRC_HSI		0xA5070880
-#define SYSTEM_CLKSEL_HSI               0x57040002
+#define SYSTEM_CLKSRC_HSI				0xA5070880
+#define SYSTEM_CLKSEL_HSI				0x57040002
 
-typedef enum {
+enum erase_mode {
 	erase_mode_page,
 	erase_mode_1kb,
 	erase_mode_4kb,
 	erase_mode_chip,
 	erase_mode_max
-} erase_mode;
+};
 
-struct abov32v2_flash_bank {
-	bool probed;
-
+static const struct abov32v2_dev {
+	uint32_t id;
+	const char *device_str;
 	uint32_t code_size;
 	uint32_t system_size;
 	uint32_t page_size;
 	uint32_t wprot_seg_size;
-	bool abwprot;			/* active bootloader write protection */
+	bool abwprot;				/* active bootloader write protection */
+} abov32v2_devices[] = {
+{
+	.id = A31G31X_FLASH_64KB,
+	.device_str = "A31G313 : FLASH 64KB / SRAM 16KB ",
+	.code_size = 0x10000,
+	.system_size = 0x600,
+	.page_size = 0x200,
+	.wprot_seg_size = 0x800,
+	.abwprot = false
+}, {
+	.id = A31G31X_FLASH_128KB,
+	.device_str = "A31G314 : FLASH 128KB / SRAM 16KB",
+	.code_size = 0x20000,
+	.system_size = 0x600,
+	.page_size = 0x200,
+	.wprot_seg_size = 0x4000,
+	.abwprot = false
+}, {
+	.id = A31G32X_FLASH_64KB,
+	.device_str = "A31G323 : FLASH 64KB / SRAM 16KB",
+	.code_size = 0x10000,
+	.system_size = 0x600,
+	.page_size = 0x200,
+	.wprot_seg_size = 0x1000,
+	.abwprot = false
+}, {
+	.id = A31G32X_FLASH_128KB,
+	.device_str = "A31G324 : FLASH 128KB / SRAM 16KB",
+	.code_size = 0x20000,
+	.system_size = 0x600,
+	.page_size = 0x200,
+	.wprot_seg_size = 0x1000,
+	.abwprot = false
+}, {
+	.id = A31G31X_FLASH_256KB,
+	.device_str = "A31G316 : Flash 256KB / SRAM 16KB",
+	.code_size = 0x40000,
+	.system_size = 0x600,
+	.page_size = 0x200,
+	.wprot_seg_size = 0x4000,
+	.abwprot = false
+}, {
+	.id = A31G21X_FLASH_32KB,
+	.device_str = "A31G212 : FLASH 32KB / SRAM 6KB",
+	.code_size = 0x8000,
+	.system_size = 0x600,
+	.page_size = 0x200,
+	.wprot_seg_size = 0x800,
+	.abwprot = false
+}, {
+	.id = A31G21X_FLASH_64KB,
+	.device_str = "A31G213 : FLASH 64KB / SRAM 6KB",
+	.code_size = 0x10000,
+	.system_size = 0x600,
+	.page_size = 0x200,
+	.wprot_seg_size = 0x800,
+	.abwprot = false
+}, {
+	.id = A31G22X_FLASH_128KB,
+	.device_str = "A31G224 : FLASH 128KB / SRAM 20KB",
+	.code_size = 0x20000,
+	.system_size = 0x0,
+	.page_size = 0x200,
+	.wprot_seg_size = 0x4000,
+	.abwprot = true
+}, {
+	.id = A31G22X_FLASH_256KB,
+	.device_str = "A31G226 : FLASH 256KB / SRAM 20KB",
+	.code_size = 0x40000,
+	.system_size = 0x0,
+	.page_size = 0x4000,
+	.wprot_seg_size = 0x200,
+	.abwprot = true
+}};
+
+struct abov32v2_flash_bank {
+	bool probed;
+	const struct abov32v2_dev *dev;
 };
+
 
 static int abov32v2_wait_busy(struct flash_bank *bank, int timeout)
 {
 	struct target *target = bank->target;
 	uint32_t busy = 0;
-	int tout = timeout;
-	int ret = ERROR_OK;
 
 	while (1) {
-		ret = target_read_u32(target, FLASH_WBUSY_REG, &busy);
-		if (!(busy & 0x1))
+		int ret = target_read_u32(target, FLASH_WBUSY_REG, &busy);
+		if (ret != ERROR_OK)
+			return ret;
+
+		if (!(busy & FLASH_WBUSY_REG_BUSY))
 			break;
 
-		if (tout-- <= 0) {
-			ret = ERROR_FAIL;
-			break;
-		}
+		if (timeout-- <= 0)
+			return ERROR_TIMEOUT_REACHED;
 	}
 
-	return ret;
+	return ERROR_OK;
 }
 
-static int abov32v2_set_reg(struct flash_bank *bank, uint32_t addr, uint32_t bit, uint32_t val)
+static int abov32v2_set_clear_reg(struct flash_bank *bank, uint32_t addr, uint32_t set, uint32_t clear)
 {
 	struct target *target = bank->target;
 	int ret = ERROR_OK;
@@ -169,8 +246,7 @@ static int abov32v2_set_reg(struct flash_bank *bank, uint32_t addr, uint32_t bit
 	LOG_INFO("old reg:0x%08x, val:0x%08x", addr, reg);
 #endif
 
-	reg &= ~(val << bit);
-	reg |= (val << bit);
+	reg = (reg & ~clear) | set;
 
 #if defined DEBUG_LOG
 	LOG_INFO("new reg:0x%08x, val:0x%08x", addr, reg);
@@ -187,73 +263,12 @@ static int abov32v2_get_chipset_id(struct flash_bank *bank, uint32_t *chipset_id
 	return ret;
 }
 
-static int abov32v2_get_geometry(struct flash_bank *bank, uint32_t chipset_id)
+const struct abov32v2_dev *abov32v2_find_device(uint32_t id)
 {
-	struct abov32v2_flash_bank *abov32v2_info = bank->driver_priv;
-	int ret = ERROR_OK;
-
-	switch (chipset_id & ABOV_CHIP_ID_MASK) {
-		case A31G31X_FLASH_128KB:
-			abov32v2_info->code_size = 0x20000;
-			abov32v2_info->system_size = 0x600;
-			abov32v2_info->wprot_seg_size = 0x4000;
-			abov32v2_info->page_size = 0x200;
-			break;
-		case A31G31X_FLASH_64KB:
-			abov32v2_info->code_size = 0x10000;
-			abov32v2_info->system_size = 0x600;
-			abov32v2_info->wprot_seg_size = 0x800;
-			abov32v2_info->page_size = 0x200;
-			break;
-		case A31G31X_FLASH_256KB:
-			abov32v2_info->code_size = 0x40000;
-			abov32v2_info->system_size = 0x600;
-			abov32v2_info->wprot_seg_size = 0x4000;
-			abov32v2_info->page_size = 0x200;
-			break;
-		case A31G32X_FLASH_128KB:
-			abov32v2_info->code_size = 0x20000;
-			abov32v2_info->system_size = 0x600;
-			abov32v2_info->wprot_seg_size = 0x1000;
-			abov32v2_info->page_size = 0x200;
-			break;
-		case A31G32X_FLASH_64KB:
-			abov32v2_info->code_size = 0x10000;
-			abov32v2_info->system_size = 0x600;
-			abov32v2_info->wprot_seg_size = 0x1000;
-			abov32v2_info->page_size = 0x200;
-			break;
-		case A31G21X_FLASH_64KB:
-			abov32v2_info->code_size = 0x10000;
-			abov32v2_info->system_size = 0x600;
-			abov32v2_info->wprot_seg_size = 0x800;
-			abov32v2_info->page_size = 0x200;
-			break;
-		case A31G21X_FLASH_32KB:
-			abov32v2_info->code_size = 0x8000;
-			abov32v2_info->system_size = 0x600;
-			abov32v2_info->wprot_seg_size = 0x800;
-			abov32v2_info->page_size = 0x200;
-			break;
-		case A31G22X_FLASH_256KB:
-			abov32v2_info->code_size = 0x40000;
-			abov32v2_info->system_size = 0x0;
-			abov32v2_info->wprot_seg_size = 0x4000;
-			abov32v2_info->page_size = 0x200;
-			abov32v2_info->abwprot = true;
-			break;
-		case A31G22X_FLASH_128KB:
-			abov32v2_info->code_size = 0x20000;
-			abov32v2_info->system_size = 0x0;
-			abov32v2_info->wprot_seg_size = 0x4000;
-			abov32v2_info->page_size = 0x200;
-			abov32v2_info->abwprot = true;
-			break;
-		default:
-			ret = ERROR_FLASH_BANK_NOT_PROBED;
-			break;
-	}
-	return ret;
+	for (unsigned int i = 0; i < ARRAY_SIZE(abov32v2_devices); i++)
+		if ((id & ABOV_CHIP_ID_MASK) == abov32v2_devices[i].id)
+			return &abov32v2_devices[i];
+	return NULL;
 }
 
 static int abov32v2_protect_check(struct flash_bank *bank)
@@ -270,7 +285,7 @@ static int abov32v2_protect_check(struct flash_bank *bank)
 #if defined DEBUG_LOG
 	LOG_INFO("cur wprotect:0x%08x, wprotect blocks:%d\n", reg, bank->num_prot_blocks);
 #endif
-	for (uint32_t i = 0; i < bank->num_prot_blocks; i++) {
+	for (unsigned int i = 0; i < bank->num_prot_blocks; i++) {
 		bank->prot_blocks[i].is_protected = (reg & (FLASH_PROT_LOCK << i)) ? FLASH_PROT_LOCK : FLASH_PROT_UNLOCK;
 #if defined DEBUG_LOG
 		LOG_INFO("%d block is %s", i, (bank->prot_blocks[i].is_protected == 1) ? "lock" : "unlock");
@@ -295,7 +310,7 @@ static int abov32v2_set_write_protect(struct flash_bank *bank, int set, uint32_t
 	if (ret != ERROR_OK)
 		goto err;
 
-	for (uint32_t i = first; i <= last; i++)
+	for (unsigned int i = first; i <= last; i++)
 		prot |= (FLASH_PROT_LOCK << i);
 
 #if defined DEBUG_LOG
@@ -325,7 +340,7 @@ err:
 	return ret;
 }
 
-static int abov32v2_set_erase(struct flash_bank *bank, uint32_t pageaddr, erase_mode mode)
+static int abov32v2_set_erase(struct flash_bank *bank, uint32_t pageaddr, enum erase_mode mode)
 {
 	struct target *target = bank->target;
 	int ret = ERROR_OK;
@@ -342,20 +357,20 @@ static int abov32v2_set_erase(struct flash_bank *bank, uint32_t pageaddr, erase_
 		goto err;
 
 	/* set pmode */
-	ret = abov32v2_set_reg(bank, FLASH_CR_REG, FLASH_CR_ADDR_LATCH, FLASH_ENABLE);
+	ret = abov32v2_set_clear_reg(bank, FLASH_CR_REG, FLASH_CR_ADDR_LATCH, FLASH_ENABLE);
 	if (ret != ERROR_OK)
 		goto err;
 
 	/* select erase area mode */
 	switch (mode) {
 		case erase_mode_chip:
-			ret = abov32v2_set_reg(bank, FLASH_CR_REG, FLASH_CR_ERASE_CHIP, FLASH_ENABLE);
+			ret = abov32v2_set_clear_reg(bank, FLASH_CR_REG, FLASH_CR_ERASE_CHIP, FLASH_ENABLE);
 			break;
 		case erase_mode_1kb:
-			ret = abov32v2_set_reg(bank, FLASH_CR_REG, FLASH_CR_ERASE_1KB, FLASH_ENABLE);
+			ret = abov32v2_set_clear_reg(bank, FLASH_CR_REG, FLASH_CR_ERASE_1KB, FLASH_ENABLE);
 			break;
 		case erase_mode_4kb:
-			ret = abov32v2_set_reg(bank, FLASH_CR_REG, FLASH_CR_ERASE_4KB, FLASH_ENABLE);
+			ret = abov32v2_set_clear_reg(bank, FLASH_CR_REG, FLASH_CR_ERASE_4KB, FLASH_ENABLE);
 			break;
 		default:
 			/* page erase mode */
@@ -366,17 +381,17 @@ static int abov32v2_set_erase(struct flash_bank *bank, uint32_t pageaddr, erase_
 		goto err;
 
 	/* signaling erase to bus */
-	ret = abov32v2_set_reg(bank, FLASH_CR_REG, FLASH_CR_ERASE, FLASH_ENABLE);
+	ret = abov32v2_set_clear_reg(bank, FLASH_CR_REG, FLASH_CR_ERASE, FLASH_ENABLE);
 	if (ret != ERROR_OK)
 		goto err;
 
 	/* latch signals */
-	ret = abov32v2_set_reg(bank, FLASH_CR_REG, FLASH_CR_WADCK, FLASH_ENABLE);
+	ret = abov32v2_set_clear_reg(bank, FLASH_CR_REG, FLASH_CR_WADCK, FLASH_ENABLE);
 	if (ret != ERROR_OK)
 		goto err;
 
 	/* enable high voltage */
-	ret = abov32v2_set_reg(bank, FLASH_CR_REG, FLASH_CR_HVEN, FLASH_ENABLE);
+	ret = abov32v2_set_clear_reg(bank, FLASH_CR_REG, FLASH_CR_HVEN, FLASH_ENABLE);
 	if (ret != ERROR_OK)
 		goto err;
 
@@ -386,11 +401,11 @@ static int abov32v2_set_erase(struct flash_bank *bank, uint32_t pageaddr, erase_
 		goto err;
 
 	/* disable high voltage */
-	ret = abov32v2_set_reg(bank, FLASH_CR_REG, FLASH_CR_HVEN, FLASH_DISABLE);
+	ret = abov32v2_set_clear_reg(bank, FLASH_CR_REG, FLASH_CR_HVEN, FLASH_DISABLE);
 	if (ret != ERROR_OK)
 		goto err;
 
-	ret = target_write_u32(target, FLASH_WBUSY_REG, 0x80);
+	ret = target_write_u32(target, FLASH_WBUSY_REG, FLASH_WBUSY_REG_CLEAR);
 
 err:
 	/* clear control reg */
@@ -411,6 +426,10 @@ FLASH_BANK_COMMAND_HANDLER(abov32v2_flash_bank_command)
 
 	struct abov32v2_flash_bank *abov32v2_info;
 	abov32v2_info = malloc(sizeof(struct abov32v2_flash_bank));
+	if (!abov32v2_info) {
+		LOG_ERROR("Out of memory");
+		return ERROR_FAIL;
+	}
 
 	bank->driver_priv = abov32v2_info;
 	abov32v2_info->probed = false;
@@ -472,7 +491,7 @@ static int abov32v2_erase(struct flash_bank *bank, unsigned int first,
 	}
 
 	if (ret == ERROR_OK) {
-		for (uint32_t i = first; i <= last; i++)
+		for (unsigned int i = first; i <= last; i++)
 			bank->sectors[i].is_erased = 1;
 	}
 
@@ -520,12 +539,12 @@ static int abov32v2_set_write(struct flash_bank *bank, const uint8_t *buffer, ui
 		goto err;
 
 	/* set pmode */
-	ret = abov32v2_set_reg(bank, FLASH_CR_REG, FLASH_CR_ADDR_LATCH, FLASH_ENABLE);
+	ret = abov32v2_set_clear_reg(bank, FLASH_CR_REG, FLASH_CR_ADDR_LATCH, FLASH_ENABLE);
 	if (ret != ERROR_OK)
 		goto err;
 
 	/* signaling erase command to bus */
-	ret = abov32v2_set_reg(bank, FLASH_CR_REG, FLASH_CR_PROGRAM, FLASH_ENABLE);
+	ret = abov32v2_set_clear_reg(bank, FLASH_CR_REG, FLASH_CR_PROGRAM, FLASH_ENABLE);
 	if (ret != ERROR_OK)
 		goto err;
 
@@ -638,40 +657,42 @@ static int abov32v2_probe(struct flash_bank *bank)
 	if (ret != ERROR_OK)
 		goto err;
 
-	ret = abov32v2_get_geometry(bank, chipset_id);
-	if (ret != ERROR_OK)
-		goto err;
+	/* find and get geometry info */
+	abov32v2_info->dev = abov32v2_find_device(chipset_id);
+
+	if (!abov32v2_info->dev)
+		return ERROR_FAIL;
 
 	/* code area size */
-	bank->size = abov32v2_info->code_size;
+	bank->size = abov32v2_info->dev->code_size;
 
 	/* start address */
 	bank->base = 0;
 
 	/* num of sectors (page == sector) */
-	bank->num_sectors = abov32v2_info->code_size / abov32v2_info->page_size;
+	bank->num_sectors = abov32v2_info->dev->code_size / abov32v2_info->dev->page_size;
 	/* alloc sector blocks */
 	free(bank->sectors);
 	bank->sectors = NULL;
-	bank->sectors = alloc_block_array(0, abov32v2_info->page_size, bank->num_sectors);
+	bank->sectors = alloc_block_array(0, abov32v2_info->dev->page_size, bank->num_sectors);
 	if (!bank->sectors) {
 		ret = ERROR_FAIL;
 		goto err;
 	}
 
 	/* num of protection segments (blocks) */
-	bank->num_prot_blocks = abov32v2_info->code_size / abov32v2_info->wprot_seg_size;
+	bank->num_prot_blocks = abov32v2_info->dev->code_size / abov32v2_info->dev->wprot_seg_size;
 	/* alloc protection blocks */
 	free(bank->prot_blocks);
 	bank->prot_blocks = NULL;
-	bank->prot_blocks = alloc_block_array(0, abov32v2_info->wprot_seg_size, bank->num_prot_blocks);
+	bank->prot_blocks = alloc_block_array(0, abov32v2_info->dev->wprot_seg_size, bank->num_prot_blocks);
 	if (!bank->prot_blocks) {
 		ret = ERROR_FAIL;
 		free(bank->sectors);
 		goto err;
 	}
 
-	if (abov32v2_info->abwprot) {
+	if (abov32v2_info->dev->abwprot) {
 		/* Active flash write protection disable */
 		target_write_u32(target, FLASH_MODE_REG, FLASH_PROT_MODE_CMD1);
 		target_write_u32(target, FLASH_MODE_REG, FLASH_PROT_MODE_CMD2);
@@ -688,7 +709,7 @@ static int abov32v2_probe(struct flash_bank *bank)
 	abov32v2_info->probed = true;
 #if defined DEBUG_LOG
 	LOG_INFO("ID:0x%08x, size=0x%08x, page=0x%08x, sectors=%d, prot=%d",
-			chipset_id, bank->size, abov32v2_info->page_size, bank->num_sectors, bank->num_prot_blocks);
+			chipset_id, bank->size, abov32v2_info->dev->page_size, bank->num_sectors, bank->num_prot_blocks);
 #endif
 
 err:
@@ -705,53 +726,14 @@ static int abov32v2_auto_probe(struct flash_bank *bank)
 
 static int abov32v2_info(struct flash_bank *bank, struct command_invocation *cmd)
 {
-	int ret = ERROR_OK;
-	uint32_t chipset_id;
-	const char *device_str = NULL;
+	struct abov32v2_flash_bank *abov32v2_info = bank->driver_priv;
 
-	ret = abov32v2_get_chipset_id(bank, &chipset_id);
-	if (ret != ERROR_OK)
-		goto err;
-
-	switch (chipset_id & ABOV_CHIP_ID_MASK) {
-		case A31G31X_FLASH_64KB:
-			device_str = "A31G313 : FLASH 64KB / SRAM 16KB ";
-			break;
-		case A31G31X_FLASH_128KB:
-			device_str = "A31G314 : FLASH 128KB / SRAM 16KB";
-			break;
-		case A31G31X_FLASH_256KB:
-			device_str = "A31G316 : Flash 256KB / SRAM 16KB";
-			break;
-		case A31G32X_FLASH_128KB:
-			device_str = "A31G324 : FLASH 128KB / SRAM 16KB";
-			break;
-		case A31G32X_FLASH_64KB:
-			device_str = "A31G323 : FLASH 64KB / SRAM 16KB";
-			break;
-		case A31G21X_FLASH_64KB:
-			device_str = "A31G213 : FLASH 64KB / SRAM 6KB";
-			break;
-		case A31G21X_FLASH_32KB:
-			device_str = "A31G212 : FLASH 32KB / SRAM 6KB";
-			break;
-		case A31G22X_FLASH_256KB:
-			device_str = "A31G226 : FLASH 256KB / SRAM 20KB";
-			break;
-		case A31G22X_FLASH_128KB:
-			device_str = "A31G224 : FLASH 128KB / SRAM 20KB";
-			break;
-		default:
-			ret = ERROR_FAIL;
-			break;
-	}
-
-	if (device_str)
-		command_print_sameline(cmd, "\nABOV 32Bit MCU - %s", device_str);
+	if (abov32v2_info->probed)
+		command_print_sameline(cmd, "\nABOV 32Bit MCU - %s", abov32v2_info->dev->device_str);
 	else
 		command_print_sameline(cmd, "\nNo chipset detected");
-err:
-	return ret;
+
+	return ERROR_OK;
 }
 
 COMMAND_HANDLER(abov32v2_handle_lock_command)
