@@ -15,7 +15,7 @@
 	 * r1 - working memory start address
 	 * r2 - working memory end address
 	 * r3 - flash register base address
-     * r4 - destination flash address
+	 * r4 - destination flash address
 	 * Clobbered:
 	 * r5 - rp
 	 * r6 - wp, tmp
@@ -53,7 +53,7 @@ busy:
 	beq		busy
 
 	adds	r5, #4			/* increment 4 bytes address */
-    adds    r4, #4			/* increment 4 bytes flash address */
+	adds	r4, #4			/* increment 4 bytes flash address */
 
 	cmp		r5, r2			/* wrap rp at end of work area buffer */
 	bcc		no_wrap

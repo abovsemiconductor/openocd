@@ -9,6 +9,7 @@ noinst_LTLIBRARIES += %D%/libocdflashnor.la
 	$(NORHEADERS)
 
 NOR_DRIVERS = \
+	%D%/abov32v1.c \
 	%D%/abov32v2.c \
 	%D%/abov32v3.c \
 	%D%/aduc702x.c \

@@ -9,6 +9,7 @@
 #endif
 #include "imp.h"
 
+extern const struct flash_driver abov32v1_flash;
 extern const struct flash_driver abov32v2_flash;
 extern const struct flash_driver abov32v3_flash;
 extern const struct flash_driver aduc702x_flash;
@@ -87,6 +88,7 @@ extern const struct flash_driver rsl10_flash;
  * @todo Make this dynamically extendable with loadable modules.
  */
 static const struct flash_driver * const flash_drivers[] = {
+	&abov32v1_flash,
 	&abov32v2_flash,
 	&abov32v3_flash,
 	&aduc702x_flash,

@@ -10,7 +10,7 @@ OBJDUMP=$(CROSS_COMPILE)objdump
 
 CFLAGS = -static -nostartfiles -mlittle-endian -Wa,-EL
 
-all: abov32v2.inc abov32v3.inc
+all: abov32v1.inc abov32v2.inc abov32v3.inc
 
 .PHONY: clean
 
