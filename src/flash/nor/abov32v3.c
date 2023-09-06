@@ -410,12 +410,37 @@ static int abov32v3_erase(struct flash_bank *bank, unsigned int first,
 	int ret = ERROR_OK;
 	uint32_t sec_cnt = 0;
 	uint32_t sec_offset = first;
+	uint32_t wprot_first = 0, wprot_last = 0;
+	uint32_t start_addr = 0, end_addr = 0;
 
 #if defined DEBUG_LOG
 	LOG_INFO("erase first=%d last=%d", first, last);
 #endif
 
-	abov32v3_set_write_protect(bank, FLASH_CODE_PROT_UNLOCK, first, last);
+	/* find fist and last protect block index */
+	start_addr = first * abov32v3_info->dev->page_size;
+	end_addr = last * abov32v3_info->dev->page_size;
+
+	for (unsigned int i = 0; i < bank->num_prot_blocks; i++) {
+		if (start_addr >= bank->prot_blocks[i].offset) {
+			wprot_first = i;
+			break;
+		}
+	}
+
+	for (unsigned int i = 0; i < bank->num_prot_blocks; i++) {
+		if (end_addr >= bank->prot_blocks[i].offset
+			&& (end_addr < bank->prot_blocks[i].offset + bank->prot_blocks[i].size)) {
+			wprot_last = i;
+			break;
+		}
+	}
+
+#if defined DEBUG_LOG
+	LOG_INFO("start=0x%x, end=0x%x, first=%d, last=%d\n", start_addr, end_addr, wprot_first, wprot_last);
+#endif
+
+	abov32v3_set_write_protect(bank, FLASH_CODE_PROT_UNLOCK, wprot_first, wprot_last);
 
 	sec_cnt = (last - first) + 1;
 	if (sec_cnt == bank->num_sectors) {

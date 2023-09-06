@@ -517,7 +517,7 @@ static int abov32v1_erase(struct flash_bank *bank, unsigned int first,
 	}
 
 	if (ret == ERROR_OK) {
-		for (unsigned int i = wprot_first; i <= wprot_last; i++)
+		for (unsigned int i = first; i <= last; i++)
 			bank->sectors[i].is_erased = 1;
 	}
 

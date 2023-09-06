@@ -202,8 +202,8 @@ static const struct abov32v2_dev {
 	.device_str = "A31G226 : FLASH 256KB / SRAM 20KB",
 	.code_size = 0x40000,
 	.system_size = 0x0,
-	.page_size = 0x4000,
-	.wprot_seg_size = 0x200,
+	.page_size = 0x200,
+	.wprot_seg_size = 0x4000,
 	.abwprot = true
 }};
 
@@ -440,15 +440,41 @@ FLASH_BANK_COMMAND_HANDLER(abov32v2_flash_bank_command)
 static int abov32v2_erase(struct flash_bank *bank, unsigned int first,
 		unsigned int last)
 {
+	struct abov32v2_flash_bank *abov32v2_info = bank->driver_priv;
 	int ret = ERROR_OK;
 	uint32_t sec_cnt = 0;
 	uint32_t sec_offset = first;
+	uint32_t wprot_first = 0, wprot_last = 0;
+	uint32_t start_addr = 0, end_addr = 0;
 
 #if defined DEBUG_LOG
 	LOG_INFO("erase first=%d last=%d", first, last);
 #endif
 
-	abov32v2_set_write_protect(bank, FLASH_PROT_UNLOCK, first, last);
+	/* find fist and last protect block index */
+	start_addr = first * abov32v2_info->dev->page_size;
+	end_addr = last * abov32v2_info->dev->page_size;
+
+	for (unsigned int i = 0; i < bank->num_prot_blocks; i++) {
+		if (start_addr >= bank->prot_blocks[i].offset) {
+			wprot_first = i;
+			break;
+		}
+	}
+
+	for (unsigned int i = 0; i < bank->num_prot_blocks; i++) {
+		if (end_addr >= bank->prot_blocks[i].offset
+			&& (end_addr < bank->prot_blocks[i].offset + bank->prot_blocks[i].size)) {
+			wprot_last = i;
+			break;
+		}
+	}
+
+#if defined DEBUG_LOG
+	LOG_INFO("start=0x%x, end=0x%x, first=%d, last=%d\n", start_addr, end_addr, wprot_first, wprot_last);
+#endif
+
+	abov32v2_set_write_protect(bank, FLASH_PROT_UNLOCK, wprot_first, wprot_last);
 
 	sec_cnt = (last - first) + 1;
 	if (sec_cnt == bank->num_sectors) {
