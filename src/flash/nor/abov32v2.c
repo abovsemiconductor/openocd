@@ -25,32 +25,18 @@
 #define A31G31X_FLASH_128KB				0x1A003
 #define A31G31X_FLASH_64KB				0x1A004
 #define A31G31X_FLASH_256KB				0x1A005
-#define A31G31X_FLASH_CODE_BASE_ADDR	0x00000000
-#define A31G31X_FLASH_REG_ADDR			0x40000100
 
 #define A31G32X_FLASH_128KB				0x1A006
 #define A31G32X_FLASH_64KB				0x1A007
-#define A31G32X_FLASH_CODE_BASE_ADDR	0x00000000
-#define A31G32X_FLASH_REG_ADDR			0x40000100
 
 #define A31G21X_FLASH_64KB				0x1A008
 #define A31G21X_FLASH_32KB				0x1A009
-#define A31G21X_FLASH_CODE_BASE_ADDR	0x00000000
-#define A31G21X_FLASH_REG_ADDR			0x40000100
+
+#define A31T21X_FLASH_128KB				0x1A01C
+#define A31T21X_FLASH_256KB				0x1A01D
 
 #define A31G22X_FLASH_256KB				0x1A00A
 #define A31G22X_FLASH_128KB				0x1A00B
-
-#define A34M41X_FLASH_512KB				0x4A000
-#define A34M41X_FLASH_256KB				0x4A001
-#define A34M41X_FLASH_128KB				0x4A002
-
-#define A33G52X_FLASH_384KB				0x3A000
-#define A33G52X_FLASH_256KB				0x3A001
-#define A33G52X_FLASH_128KB				0x3A002
-
-#define A33M11X_FLASH_256KB				0x3A004
-#define A33M11X_FLASH_128KB				0x3A005
 
 #define ABOV_CHIP_ID_MASK				0xFFFFF
 
@@ -188,6 +174,22 @@ static const struct abov32v2_dev {
 	.system_size = 0x600,
 	.page_size = 0x200,
 	.wprot_seg_size = 0x800,
+	.abwprot = false
+}, {
+	.id = A31T21X_FLASH_128KB,
+	.device_str = "A31T214 : FLASH 128KB / SRAM 16KB",
+	.code_size = 0x20000,
+	.system_size = 0x600,
+	.page_size = 0x200,
+	.wprot_seg_size = 0x2000,
+	.abwprot = false
+}, {
+	.id = A31T21X_FLASH_256KB,
+	.device_str = "A31T216 : FLASH 256KB / SRAM 16KB",
+	.code_size = 0x40000,
+	.system_size = 0x600,
+	.page_size = 0x200,
+	.wprot_seg_size = 0x2000,
 	.abwprot = false
 }, {
 	.id = A31G22X_FLASH_128KB,
