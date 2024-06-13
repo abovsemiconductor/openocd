@@ -26,6 +26,11 @@
 #define A33G52X_FLASH_256KB				0x33A001
 #define A33G52X_FLASH_128KB				0x33A002
 
+#define A33G53X_FLASH_768KB				0x335381
+#define A33G53X_FLASH_512KB				0x335380
+
+#define A33G53x_MULTIBANK_CMD           0
+
 #define ABOV_CHIP_ID_MASK				0xFFFFFF
 
 /* Code Flash Reg Offset */
@@ -34,6 +39,7 @@
 #define FLASH_CODE_ADDR_REG				(FLASH_CODE_REG_START_ADDR | 0x00000010)
 #define FLASH_CODE_EXT_REG				(FLASH_CODE_REG_START_ADDR | 0x00000014)
 #define FLASH_CODE_WPROT_REG			(FLASH_CODE_REG_START_ADDR | 0x0000001C)
+#define FLASH_CODE_BANK_CTRL_REG		(FLASH_CODE_REG_START_ADDR | 0x00000054)
 
 /* Code Flash Control Reg bit position */
 #define FLASH_CODE_CTRL_PROGRAM			BIT(0)
@@ -58,9 +64,22 @@
 #define FLASH_CODE_PROT_LOCK			0x00000000
 #define FLASH_CODE_PROT_UNLOCK			0x00000001
 #define FLASH_CODE_ERASE_TIMEOUT		100
-#define FLASH_CODE_MAX_WPROT_CNT		4
+#define FLASH_CODE_MAX_WPROT_CNT		6
 #define FLASH_DATA_WPROT_START_INDEX	8
 #define FLASH_DATA_WPROT_BIT_CNT		4
+#define FLASH_CODE_WPROT_START_INDEX1	14
+#define FLASH_CODE_WPROT_BIT_INDEX1		2
+#define FLASH_CODE_WPROT_START_INDEX2	24
+#define FLASH_CODE_WPROT_BIT_INDEX2		4
+
+/* Multi Bank */
+#define FLASH_MULTI_BANK_CNT			2
+#define FLASH_MULTI_BANK_CMD_CNT		10
+#define FLASH_MULTI_BANK_CTRL_EN		BIT(4)
+#define FLASH_MULTI_BANK_CTRL_SWAP		BIT(0)
+#define FLASH_MULTI_BANK_CMD_OPT_PROT	BIT(31)
+#define FLASH_MULTI_BANK_KEY			0xAA910000
+#define FLASH_MULTI_BANK_CMD_OPT_ADDR	0x00400000
 
 #define FLASH_ENABLE					0x00000001
 #define FLASH_DISABLE					0x00000000
@@ -77,6 +96,7 @@
 
 #define SYSTEM_CLKCR_REG				0x4000003C
 #define SYSTEM_CLKSEL_HSI				0x00000003
+
 
 enum erase_mode {
 	erase_mode_page		=	BIT(0),
@@ -111,6 +131,8 @@ static const struct abov32v1_dev {
 	uint32_t page_size;
 	struct abov32v1_erase erase;
 	struct abov32v1_wprot wprot[FLASH_CODE_MAX_WPROT_CNT];
+	bool multi;
+	int multi_cmd_idx;
 } abov32v1_devices[] = {
 {
 	.id = A33G52X_FLASH_128KB,
@@ -123,6 +145,8 @@ static const struct abov32v1_dev {
 	.erase.page_bit = BIT(18),
 	.erase.sector_1kb_bit = BIT(1),
 	.erase.min_sector_by_page_cnt = FLASH_CODE_1KB_SECTOR_BY_PAGE_COUNT,
+	.multi = false,
+	.multi_cmd_idx = -1,
 	.wprot = {
 		{
 			.num_wprot = 4,
@@ -149,6 +173,8 @@ static const struct abov32v1_dev {
 	.erase.page_bit = BIT(18),
 	.erase.sector_1kb_bit = BIT(1),
 	.erase.min_sector_by_page_cnt = FLASH_CODE_1KB_SECTOR_BY_PAGE_COUNT,
+	.multi = false,
+	.multi_cmd_idx = -1,
 	.wprot = {
 		{
 			.num_wprot = 4,
@@ -175,6 +201,8 @@ static const struct abov32v1_dev {
 	.erase.page_bit = BIT(18),
 	.erase.sector_1kb_bit = BIT(1),
 	.erase.min_sector_by_page_cnt = FLASH_CODE_1KB_SECTOR_BY_PAGE_COUNT,
+	.multi = false,
+	.multi_cmd_idx = -1,
 	.wprot = {
 		{
 			.num_wprot = 4,
@@ -194,6 +222,86 @@ static const struct abov32v1_dev {
 			.size = 0x10000
 		}
 	}
+}, {
+	.id = A33G53X_FLASH_768KB,
+	.device_str = "A33G539 : FLASH 768KB (MULTIBANK) / SRAM 24KB",
+	.code_size = 0xC0000,
+	.system_size = 0x0,
+	.page_size = 0x200,
+	.erase.support_mode = erase_mode_page | erase_mode_2kb | erase_mode_chip,
+	.erase.chipset_bit = BIT(2),
+	.erase.page_bit = BIT(18),
+	.erase.sector_2kb_bit = BIT(1),
+	.erase.min_sector_by_page_cnt = FLASH_CODE_2KB_SECTOR_BY_PAGE_COUNT,
+	.multi = true,
+	.multi_cmd_idx = 0,
+	.wprot = {
+		{
+			.num_wprot = 4,
+			.offset = 0,
+			.size = 0x1000
+		}, {
+			.num_wprot = 1,
+			.offset = 0x4000,
+			.size = 0xC000
+		}, {
+			.num_wprot = 5,
+			.offset = 0x10000,
+			.size = 0x10000
+		}, {
+			.num_wprot = 4,
+			.offset = 0x60000,
+			.size = 0x1000
+		}, {
+			.num_wprot = 1,
+			.offset = 0x64000,
+			.size = 0xC000
+		}, {
+			.num_wprot = 5,
+			.offset = 0x70000,
+			.size = 0x10000
+		}
+	}
+}, {
+	.id = A33G53X_FLASH_512KB,
+	.device_str = "A33G538 : FLASH 512KB (MULTIBANK) / SRAM 24KB",
+	.code_size = 0x80000,
+	.system_size = 0x0,
+	.page_size = 0x200,
+	.erase.support_mode = erase_mode_page | erase_mode_2kb | erase_mode_chip,
+	.erase.chipset_bit = BIT(2),
+	.erase.page_bit = BIT(18),
+	.erase.sector_2kb_bit = BIT(1),
+	.erase.min_sector_by_page_cnt = FLASH_CODE_2KB_SECTOR_BY_PAGE_COUNT,
+	.multi = true,
+	.multi_cmd_idx = 0,
+	.wprot = {
+		{
+			.num_wprot = 4,
+			.offset = 0,
+			.size = 0x1000
+		}, {
+			.num_wprot = 1,
+			.offset = 0x4000,
+			.size = 0xC000
+		}, {
+			.num_wprot = 3,
+			.offset = 0x10000,
+			.size = 0x10000
+		}, {
+			.num_wprot = 4,
+			.offset = 0x40000,
+			.size = 0x1000
+		}, {
+			.num_wprot = 1,
+			.offset = 0x44000,
+			.size = 0xC000
+		}, {
+			.num_wprot = 3,
+			.offset = 0x50000,
+			.size = 0x10000
+		}
+	}
 }};
 
 
@@ -202,6 +310,32 @@ struct abov32v1_flash_bank {
 	const struct abov32v1_dev *dev;
 };
 
+static const uint32_t abov32v1_bootromcmd[][FLASH_MULTI_BANK_CNT][FLASH_MULTI_BANK_CMD_CNT] = {
+{
+	{
+		0x55555555,
+		0xAAAAAAAA,
+		0xED8D0154,
+		0xAA910010,
+		0xFFFFFFFF,
+		0xFFFFFFFF,
+		0xFFFFFFFF,
+		0xFFFFFFFF,
+		0xFFFFFFFF,
+		0xFFFFFFFF
+	}, {
+		0x55555555,
+		0xAAAAAAAA,
+		0xED8D0154,
+		0xAA910010,
+		0xED8E0154,
+		0xAA910011,
+		0xFFFFFFFF,
+		0xFFFFFFFF,
+		0xFFFFFFFF,
+		0xFFFFFFFF
+	},
+}};
 
 static int abov32v1_wait_busy(struct flash_bank *bank, int timeout)
 {
@@ -281,6 +415,12 @@ static int abov32v1_protect_check(struct flash_bank *bank)
 		else
 			j = i;
 
+		if (j >= FLASH_CODE_WPROT_START_INDEX1)
+			j += FLASH_CODE_WPROT_BIT_INDEX1;
+
+		if (j >= FLASH_CODE_WPROT_START_INDEX2)
+			j += FLASH_CODE_WPROT_BIT_INDEX2;
+
 		bank->prot_blocks[i].is_protected = (reg & (FLASH_CODE_PROT_UNLOCK << j))
 			? false : true;
 #if defined DEBUG_LOG
@@ -307,6 +447,12 @@ static int abov32v1_set_write_protect(struct flash_bank *bank, int set, uint32_t
 			j = i + FLASH_DATA_WPROT_BIT_CNT;
 		else
 			j = i;
+
+		if (j >= FLASH_CODE_WPROT_START_INDEX1)
+			j += FLASH_CODE_WPROT_BIT_INDEX1;
+
+		if (j >= FLASH_CODE_WPROT_START_INDEX2)
+			j += FLASH_CODE_WPROT_BIT_INDEX2;
 
 		prot |= (FLASH_CODE_PROT_UNLOCK << j);
 	}
@@ -495,7 +641,7 @@ static int abov32v1_erase(struct flash_bank *bank, unsigned int first,
 #if defined DEBUG_LOG
 				LOG_INFO("2KB erase : sec_cnt remain=%d, sector num=%d", sec_cnt, sec_offset);
 #endif
-				ret = abov32v1_set_erase(bank, bank->sectors[sec_offset].offset, erase_mode_1kb);
+				ret = abov32v1_set_erase(bank, bank->sectors[sec_offset].offset, erase_mode_2kb);
 				if (ret != ERROR_OK)
 					break;
 
@@ -773,6 +919,56 @@ static int abov32v1_info(struct flash_bank *bank, struct command_invocation *cmd
 	return ERROR_OK;
 }
 
+static int abov32v1_set_multibank(struct flash_bank *bank, bool multi, bool boot)
+{
+	struct abov32v1_flash_bank *abov32v1_info = bank->driver_priv;
+	struct target *target = bank->target;
+	int ret = ERROR_OK;
+	uint32_t reg = 0;
+	uint32_t bankidx = 0;
+
+	if (abov32v1_info->dev->multi == false) {
+		return ERROR_FAIL;
+	}
+
+	ret = target_read_u32(target, FLASH_CODE_WPROT_REG, &reg);
+	if (ret != ERROR_OK)
+		goto err;
+
+	ret = target_write_u32(target, FLASH_CODE_WPROT_REG, reg | FLASH_MULTI_BANK_CMD_OPT_PROT);
+	if (ret != ERROR_OK)
+		goto err;
+
+	ret = abov32v1_set_erase(bank, FLASH_MULTI_BANK_CMD_OPT_ADDR, erase_mode_page);
+	if (ret != ERROR_OK)
+		goto err;
+
+	ret = target_read_u32(target, FLASH_CODE_BANK_CTRL_REG, &reg);
+	if (ret != ERROR_OK)
+		goto err;
+
+	reg = (reg & ~(FLASH_MULTI_BANK_CTRL_EN | FLASH_MULTI_BANK_CTRL_SWAP)) | FLASH_MULTI_BANK_KEY;
+	if (multi == true) {
+		reg |= FLASH_MULTI_BANK_CTRL_EN;
+
+		if (boot == true) {
+			reg |= FLASH_MULTI_BANK_CTRL_SWAP;
+			bankidx = 1;
+		}
+	}
+
+	ret = target_write_u32(target, FLASH_CODE_BANK_CTRL_REG, reg);
+	if (ret != ERROR_OK)
+		goto err;
+
+	if (multi == true)
+		if (abov32v1_info->dev->multi_cmd_idx >= 0)
+			ret = abov32v1_set_write(bank, (uint8_t *)&abov32v1_bootromcmd[abov32v1_info->dev->multi_cmd_idx][bankidx], FLASH_MULTI_BANK_CMD_OPT_ADDR, FLASH_MULTI_BANK_CMD_CNT * 4);
+
+err:
+	return ret;
+}
+
 COMMAND_HANDLER(abov32v1_handle_lock_command)
 {
 	int ret = ERROR_OK;
@@ -824,6 +1020,47 @@ err:
 	return ret;
 }
 
+COMMAND_HANDLER(abov32v1_handle_multibank_command)
+{
+	int ret = ERROR_OK;
+	struct flash_bank *bank;
+	bool multi = false;
+	bool boot = false;
+
+	if (CMD_ARGC < 1)
+		return ERROR_COMMAND_SYNTAX_ERROR;
+
+	ret = CALL_COMMAND_HANDLER(flash_command_get_bank, 0, &bank);
+	if (ret != ERROR_OK)
+		goto err;
+
+	CMD_ARGC--;
+	CMD_ARGV++;
+
+	if(strcmp("SBANK", CMD_ARGV[0]) == 0)
+		multi = false;
+	else if (strcmp("MBANK", CMD_ARGV[0]) == 0) {
+		multi = true;
+		if (CMD_ARGC < 2)
+			return ERROR_COMMAND_SYNTAX_ERROR;
+		else if(strcmp("BOOT0", CMD_ARGV[1]) == 0)
+			boot = false;
+		else if (strcmp("BOOT1", CMD_ARGV[1]) == 0)
+			boot = true;
+		else
+			return ERROR_COMMAND_SYNTAX_ERROR;
+	}
+	else
+		return ERROR_COMMAND_SYNTAX_ERROR;
+
+#if defined DEBUG_LOG
+	LOG_ERROR("%s : %s\n", (multi == true) ? "MULTI" : "SINGLE", (boot == true) ? "BOOT1" : "BOOT0");
+#endif
+	ret = abov32v1_set_multibank(bank, multi, boot);
+err:
+	return ret;
+}
+
 static const struct command_registration abov32v1_exec_command_handlers[] = {
 	{
 		.name = "lock",
@@ -845,6 +1082,13 @@ static const struct command_registration abov32v1_exec_command_handlers[] = {
 		.mode = COMMAND_EXEC,
 		.usage = "bank_id",
 		.help = "Erase entire flash device.",
+	},
+	{
+		.name = "multibank",
+		.handler = abov32v1_handle_multibank_command,
+		.mode = COMMAND_EXEC,
+		.usage = "bank_id ('SBANK' | 'MBANK' ('BOOT0' | 'BOOT1'))",
+		.help = "Configure single / multibank flash device.",
 	},
 	COMMAND_REGISTRATION_DONE
 };
