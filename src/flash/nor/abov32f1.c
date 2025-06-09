@@ -32,6 +32,16 @@
 #define A31G12X_FLASH_CODE_BASE_ADDR	0x10000000
 #define A31G12X_FLASH_REG_ADDR			0x40000100
 
+#define A31L12X_FLASH_32KB				0x1F005
+#define A31L12X_FLASH_64KB				0x1F004
+#define A31L12X_FLASH_CODE_BASE_ADDR	0x10000000
+#define A31L12X_FLASH_REG_ADDR			0x40000100
+
+#define A31L22X_FLASH_16KB				0x1F015
+#define A31L22X_FLASH_32KB				0x1F014
+#define A31L22X_FLASH_CODE_BASE_ADDR	0x10000000
+#define A31L22X_FLASH_REG_ADDR			0x40000100
+
 #define ABOV_CHIP_ID_MASK				0xFFFFF
 
 /* Flash Base Address */
@@ -147,6 +157,38 @@ static const struct abov32f1_dev {
 	.id = A31G11X_FLASH_32KB,
 	.device_str = "A31G112 : FLASH 32KB / SRAM 4KB",
 	.code_size = 0x8000,
+	.system_size = 0x600,
+	.page_size = 0x80,
+	.wprot_seg_size = 0x800,
+	.abwprot = false
+}, {
+	.id = A31L12X_FLASH_64KB,
+	.device_str = "A31L123 : FLASH 64KB / SRAM 8KB",
+	.code_size = 0x10000,
+	.system_size = 0x600,
+	.page_size = 0x80,
+	.wprot_seg_size = 0x800,
+	.abwprot = false
+}, {
+	.id = A31L12X_FLASH_32KB,
+	.device_str = "A31L122 : FLASH 32KB / SRAM 8KB",
+	.code_size = 0x8000,
+	.system_size = 0x600,
+	.page_size = 0x80,
+	.wprot_seg_size = 0x800,
+	.abwprot = false
+}, {
+	.id = A31L22X_FLASH_32KB,
+	.device_str = "A31L222 : FLASH 32KB / SRAM 8KB",
+	.code_size = 0x8000,
+	.system_size = 0x600,
+	.page_size = 0x80,
+	.wprot_seg_size = 0x800,
+	.abwprot = false
+}, {
+	.id = A31L22X_FLASH_16KB,
+	.device_str = "A31L121 : FLASH 16KB / SRAM 8KB",
+	.code_size = 0x4000,
 	.system_size = 0x600,
 	.page_size = 0x80,
 	.wprot_seg_size = 0x800,
