@@ -119,7 +119,7 @@
 #define SYSTEM_ACCESS_KEY_2				0x00000075
 
 /* Reg parameter count */
-#define OPENOCD_REG_PARAMS_CNT			6
+#define OPENOCD_REG_PARAMS_CNT			5
 
 enum erase_mode {
 	erase_mode_page		=	BIT(0),
@@ -723,14 +723,12 @@ static int abov32v3_set_write(struct flash_bank *bank, const uint8_t *buffer, ui
 	init_reg_param(&reg_params[2], "r2", 32, PARAM_OUT);	/* working memory end address */
 	init_reg_param(&reg_params[3], "r3", 32, PARAM_IN_OUT);	/* flash register start address */
 	init_reg_param(&reg_params[4], "r4", 32, PARAM_IN_OUT);	/* destination flash address */
-	init_reg_param(&reg_params[5], "r5", 32, PARAM_IN_OUT);	/* flash register status offset */
 
 	buf_set_u32(reg_params[0].value, 0, 32, count);		/* algo code decrement 4 count */
 	buf_set_u32(reg_params[1].value, 0, 32, imgbuffer->address);
 	buf_set_u32(reg_params[2].value, 0, 32, imgbuffer->address + imgbuffer->size);
-	buf_set_u32(reg_params[3].value, 0, 32, abov32v3_info->reg->cfg);
+	buf_set_u32(reg_params[3].value, 0, 32, abov32v3_info->reg->stats);
 	buf_set_u32(reg_params[4].value, 0, 32, addr);
-	buf_set_u32(reg_params[5].value, 0, 32, (abov32v3_info->reg->stats & 0x000000FF));
 
 	ret = target_run_flash_async_algorithm(target, buffer, (count / FLASH_WORD_COUNT), FLASH_WORD_COUNT, 0, NULL,
 			OPENOCD_REG_PARAMS_CNT, reg_params, imgbuffer->address, imgbuffer->size, algobuffer->address, 0, &armv7m_method);
@@ -743,7 +741,6 @@ static int abov32v3_set_write(struct flash_bank *bank, const uint8_t *buffer, ui
 	destroy_reg_param(&reg_params[2]);
 	destroy_reg_param(&reg_params[3]);
 	destroy_reg_param(&reg_params[4]);
-	destroy_reg_param(&reg_params[5]);
 
 err:
 	/* clear control reg */
