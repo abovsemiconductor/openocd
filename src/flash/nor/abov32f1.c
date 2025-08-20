@@ -42,6 +42,10 @@
 #define A31L22X_FLASH_CODE_BASE_ADDR	0x10000000
 #define A31L22X_FLASH_REG_ADDR			0x40000100
 
+#define A31G33X_FLASH_256KB				0x13360
+#define A31G33X_FLASH_CODE_BASE_ADDR	0x10000000
+#define A31G33X_FLASH_REG_ADDR			0x40001B00
+
 #define ABOV_CHIP_ID_MASK				0xFFFFF
 
 /* Flash Base Address */
@@ -72,19 +76,24 @@
 #define FLASH_ERR_REG                   (FLASH_REG_START_ADDR | 0x00000014)
 
 /* Flash Page Buffer */
-#define FLASH_PAGE_BUFFER_ADDR          0x40001C00
-#define FLASH_PAGE_BUFFER_SIZE          128
+#define FLASH_CODE_PAGE_BUFFER_ADDR     0x40001C00
+#define FLASH_PAGE_BUFFER_SIZE          512
 
 /* Flash Configration Option Area */
-#define FLASH_COA_START_ADDR            0x1FFFF200
-#define FLASH_COA_RPROT_FMA             (FLASH_COA_START_ADDR | 0x00000000)
-#define FLASH_COA_WPROT_COA             (FLASH_COA_START_ADDR | 0x00000014)
-#define FLASH_COA_WPROT_FMA             (FLASH_COA_START_ADDR | 0x00000040)
+#define FLASH_COA_START_ADDR_V1         0x1FFFF200
+#define FLASH_COA_START_ADDR_V2         0x1FFF3000
+
+#define FLASH_COA_START_ADDR(x)         ((x)->coa_addr)
+#define FLASH_COA_RPROT_FMA(x)          ((x)->coa_addr | 0x00000000)
+#define FLASH_COA_WPROT_COA(x)          ((x)->coa_addr | 0x00000014)
+#define FLASH_COA_WPROT_FMA(x)          ((x)->coa_addr | 0x00000040)
 
 /* Flash Read Protection Level */
 #define FLASH_RPROT_LEVEL_0             0x69C8A273
 #define FLASH_RPROT_LEVEL_1             0x69C8A272
 #define FLASH_RPROT_LEVEL_2             0x69C8A271
+
+#define FLASH_WDT_DEFAULT               0xFFFF96D3
 
 /* FLASH COA Data Index */
 #define FLASH_COA_RPROT_LEVEL_IDX       0
@@ -93,9 +102,6 @@
 
 /* Flash Control Reg bit position */
 #define FLASH_CR_PAGE_BUF_RESET         BIT(0)
-#define FLASH_CR_ERASE_PAGE             BIT(1)
-#define FLASH_CR_WRITE_PAGE             BIT(2)
-#define FLASH_CR_ERASE_CHIP             BIT(3)
 #define FLASH_CR_OPS_PAGE_BUF_RESET     (0x00 << 8)
 #define FLASH_CR_OPS_COA_MODE           (0x38 << 8)
 #define FLASH_CR_OPS_FMA_MODE           (0xA4 << 8)
@@ -111,6 +117,7 @@
 #define FLASH_PROT_UNLOCK				0x00000000
 #define FLASH_ERASE_TIMEOUT				100
 #define FLASH_WORD_ALIGN				4
+#define FLASH_WPROT_REG_MAX_COUNT		4
 
 enum erase_mode {
 	erase_mode_page,
@@ -118,6 +125,12 @@ enum erase_mode {
 	erase_mode_4kb,
 	erase_mode_chip,
 	erase_mode_max
+};
+
+struct abov32v3_ops_mode {
+	uint32_t ers_chipset_bit;
+	uint32_t ers_page_bit;
+	uint32_t wr_page_bit;
 };
 
 static const struct abov32f1_dev {
@@ -128,6 +141,9 @@ static const struct abov32f1_dev {
 	uint32_t page_size;
 	uint32_t wprot_seg_size;
 	bool abwprot;				/* active bootloader write protection */
+	uint32_t coa_addr;
+	uint32_t page_buf_addr;
+	struct abov32v3_ops_mode ops;
 } abov32f1_devices[] = {
 {
 	.id = A31G12X_FLASH_32KB,
@@ -136,7 +152,12 @@ static const struct abov32f1_dev {
 	.system_size = 0x600,
 	.page_size = 0x80,
 	.wprot_seg_size = 0x800,
-	.abwprot = false
+	.abwprot = false,
+	.coa_addr = FLASH_COA_START_ADDR_V1,
+	.page_buf_addr = FLASH_CODE_PAGE_BUFFER_ADDR,
+	.ops.ers_chipset_bit = BIT(3),
+	.ops.ers_page_bit = BIT(1),
+	.ops.wr_page_bit = BIT(2),
 }, {
 	.id = A31G12X_FLASH_64KB,
 	.device_str = "A31G123 : FLASH 64KB / SRAM 6KB",
@@ -144,7 +165,12 @@ static const struct abov32f1_dev {
 	.system_size = 0x600,
 	.page_size = 0x80,
 	.wprot_seg_size = 0x800,
-	.abwprot = false
+	.abwprot = false,
+	.coa_addr = FLASH_COA_START_ADDR_V1,
+	.page_buf_addr = FLASH_CODE_PAGE_BUFFER_ADDR,
+	.ops.ers_chipset_bit = BIT(3),
+	.ops.ers_page_bit = BIT(1),
+	.ops.wr_page_bit = BIT(2),
 }, {
 	.id = A31G11X_FLASH_16KB,
 	.device_str = "A31G111 : FLASH 16KB / SRAM 4KB",
@@ -152,7 +178,12 @@ static const struct abov32f1_dev {
 	.system_size = 0x600,
 	.page_size = 0x80,
 	.wprot_seg_size = 0x800,
-	.abwprot = false
+	.abwprot = false,
+	.coa_addr = FLASH_COA_START_ADDR_V1,
+	.page_buf_addr = FLASH_CODE_PAGE_BUFFER_ADDR,
+	.ops.ers_chipset_bit = BIT(3),
+	.ops.ers_page_bit = BIT(1),
+	.ops.wr_page_bit = BIT(2),
 }, {
 	.id = A31G11X_FLASH_32KB,
 	.device_str = "A31G112 : FLASH 32KB / SRAM 4KB",
@@ -160,7 +191,12 @@ static const struct abov32f1_dev {
 	.system_size = 0x600,
 	.page_size = 0x80,
 	.wprot_seg_size = 0x800,
-	.abwprot = false
+	.abwprot = false,
+	.coa_addr = FLASH_COA_START_ADDR_V1,
+	.page_buf_addr = FLASH_CODE_PAGE_BUFFER_ADDR,
+	.ops.ers_chipset_bit = BIT(3),
+	.ops.ers_page_bit = BIT(1),
+	.ops.wr_page_bit = BIT(2),
 }, {
 	.id = A31L12X_FLASH_64KB,
 	.device_str = "A31L123 : FLASH 64KB / SRAM 8KB",
@@ -168,7 +204,12 @@ static const struct abov32f1_dev {
 	.system_size = 0x600,
 	.page_size = 0x80,
 	.wprot_seg_size = 0x800,
-	.abwprot = false
+	.abwprot = false,
+	.coa_addr = FLASH_COA_START_ADDR_V1,
+	.page_buf_addr = FLASH_CODE_PAGE_BUFFER_ADDR,
+	.ops.ers_chipset_bit = BIT(3),
+	.ops.ers_page_bit = BIT(1),
+	.ops.wr_page_bit = BIT(2),
 }, {
 	.id = A31L12X_FLASH_32KB,
 	.device_str = "A31L122 : FLASH 32KB / SRAM 8KB",
@@ -176,7 +217,12 @@ static const struct abov32f1_dev {
 	.system_size = 0x600,
 	.page_size = 0x80,
 	.wprot_seg_size = 0x800,
-	.abwprot = false
+	.abwprot = false,
+	.coa_addr = FLASH_COA_START_ADDR_V1,
+	.page_buf_addr = FLASH_CODE_PAGE_BUFFER_ADDR,
+	.ops.ers_chipset_bit = BIT(3),
+	.ops.ers_page_bit = BIT(1),
+	.ops.wr_page_bit = BIT(2),
 }, {
 	.id = A31L22X_FLASH_32KB,
 	.device_str = "A31L222 : FLASH 32KB / SRAM 8KB",
@@ -184,7 +230,12 @@ static const struct abov32f1_dev {
 	.system_size = 0x600,
 	.page_size = 0x80,
 	.wprot_seg_size = 0x800,
-	.abwprot = false
+	.abwprot = false,
+	.coa_addr = FLASH_COA_START_ADDR_V1,
+	.page_buf_addr = FLASH_CODE_PAGE_BUFFER_ADDR,
+	.ops.ers_chipset_bit = BIT(3),
+	.ops.ers_page_bit = BIT(1),
+	.ops.wr_page_bit = BIT(2),
 }, {
 	.id = A31L22X_FLASH_16KB,
 	.device_str = "A31L121 : FLASH 16KB / SRAM 8KB",
@@ -192,13 +243,34 @@ static const struct abov32f1_dev {
 	.system_size = 0x600,
 	.page_size = 0x80,
 	.wprot_seg_size = 0x800,
-	.abwprot = false
+	.abwprot = false,
+	.coa_addr = FLASH_COA_START_ADDR_V1,
+	.page_buf_addr = FLASH_CODE_PAGE_BUFFER_ADDR,
+	.ops.ers_chipset_bit = BIT(3),
+	.ops.ers_page_bit = BIT(1),
+	.ops.wr_page_bit = BIT(2),
+}, {
+	.id = A31G33X_FLASH_256KB,
+	.device_str = "A31G336 : FLASH 256KB / SRAM 32KB",
+	.code_size = 0x40000,
+	.system_size = 0x8000,
+	.page_size = 0x200,
+	.wprot_seg_size = 0x800,
+	.abwprot = false,
+	.coa_addr = FLASH_COA_START_ADDR_V2,
+	.page_buf_addr = 0x0,
+	.ops.ers_chipset_bit = BIT(4),
+	.ops.ers_page_bit = BIT(0),
+	.ops.wr_page_bit = BIT(2),
 }};
 
 struct abov32f1_flash_bank {
 	bool probed;
 	const struct abov32f1_dev *dev;
 };
+
+static uint8_t coabuf[FLASH_PAGE_BUFFER_SIZE];
+static uint32_t wprot_first = 0, wprot_last = 0;
 
 static int abov32f1_set_erase(struct flash_bank *bank, uint32_t pageaddr, enum erase_mode mode);
 
@@ -225,6 +297,7 @@ static int abov32f1_wait_busy(struct flash_bank *bank, int timeout)
 static int abov32f1_set_preops(struct flash_bank *bank)
 {
 	struct target *target = bank->target;
+	struct abov32f1_flash_bank *abov32f1_info = bank->driver_priv;
 	uint8_t pagebuf[FLASH_PAGE_BUFFER_SIZE];
 	int ret;
 
@@ -244,15 +317,21 @@ static int abov32f1_set_preops(struct flash_bank *bank)
 	if (ret != ERROR_OK)
 	    goto err;
 
-	/* clear buffer */
-	ret = target_write_u32(target, FLASH_CR_REG, FLASH_CR_WTIDKY_VAL | FLASH_CR_PAGE_BUF_RESET);
-	if (ret != ERROR_OK)
-	    goto err;
-	
-	memset(pagebuf, 0xff, FLASH_PAGE_BUFFER_SIZE);
+	if (abov32f1_info->dev->page_buf_addr)
+	{
+		/* clear buffer */
+		ret = target_write_u32(target, FLASH_CR_REG, FLASH_CR_WTIDKY_VAL | FLASH_CR_PAGE_BUF_RESET);
+		if (ret != ERROR_OK)
+			goto err;
+		
+		memset(pagebuf, 0xff, FLASH_PAGE_BUFFER_SIZE);
 
-	ret = target_write_memory(target, FLASH_PAGE_BUFFER_ADDR, 4, FLASH_PAGE_BUFFER_SIZE / 4, pagebuf);
-
+		ret = target_write_memory(target, abov32f1_info->dev->page_buf_addr, FLASH_WORD_ALIGN, abov32f1_info->dev->page_size / FLASH_WORD_ALIGN, pagebuf);
+	}
+	else
+	{
+		ret = ERROR_OK;
+	}
 err:
 	return ret;
 }
@@ -275,10 +354,11 @@ const struct abov32f1_dev *abov32f1_find_device(uint32_t id)
 static int abov32f1_set_pagewrite(struct flash_bank *bank, uint8_t *buffer, uint32_t addr, uint32_t count, bool bcoa)
 {
 	struct target *target = bank->target;
+	struct abov32f1_flash_bank *abov32f1_info = bank->driver_priv;
 	int ret;
 	uint32_t cmd = 0;
 
-	if (count > FLASH_PAGE_BUFFER_SIZE)
+	if (count > abov32f1_info->dev->page_size)
 	{
 	    ret = ERROR_FAIL;
 		goto err;
@@ -289,16 +369,18 @@ static int abov32f1_set_pagewrite(struct flash_bank *bank, uint8_t *buffer, uint
 	if (ret != ERROR_OK)
 	    goto err;
 
-	ret = target_write_memory(target, FLASH_PAGE_BUFFER_ADDR, 4, count / 4, buffer);
-	if (ret != ERROR_OK)
-	    goto err;
+	if (abov32f1_info->dev->page_buf_addr)
+	{
+		ret = target_write_memory(target, abov32f1_info->dev->page_buf_addr, FLASH_WORD_ALIGN, count / FLASH_WORD_ALIGN, buffer);
+		if (ret != ERROR_OK)
+			goto err;
 
+		ret = target_write_u32(target, FLASH_ADDR_REG, addr | FLASH_BASE_ADDR);
+		if (ret != ERROR_OK)
+			goto err;
+	}
 
-	ret = target_write_u32(target, FLASH_ADDR_REG, addr | FLASH_BASE_ADDR);
-	if (ret != ERROR_OK)
-	    goto err;
-
-	cmd = FLASH_CR_WTIDKY_VAL | FLASH_CR_WRITE_PAGE;
+	cmd = FLASH_CR_WTIDKY_VAL | abov32f1_info->dev->ops.wr_page_bit;
 
 	if (bcoa)
 	    cmd |= FLASH_CR_OPS_COA_MODE;
@@ -310,6 +392,13 @@ static int abov32f1_set_pagewrite(struct flash_bank *bank, uint8_t *buffer, uint
 	if (ret != ERROR_OK)
 	    goto err;
 
+	if (!abov32f1_info->dev->page_buf_addr)
+	{
+		ret = target_write_memory(target, addr | FLASH_BASE_ADDR, FLASH_WORD_ALIGN, count / FLASH_WORD_ALIGN, buffer);
+		if (ret != ERROR_OK)
+			goto err;
+	}
+
 	ret = abov32f1_wait_busy(bank, FLASH_ERASE_TIMEOUT);
 
 err:
@@ -319,12 +408,12 @@ err:
 static int abov32f1_set_rprotlvl(struct flash_bank *bank, uint32_t lvl)
 {
 	struct target *target = bank->target;
+	struct abov32f1_flash_bank *abov32f1_info = bank->driver_priv;
 	int ret;
-	unsigned char coabuf[FLASH_PAGE_BUFFER_SIZE];
 	uint32_t *pcoabuf = (uint32_t *)coabuf;
 	uint32_t reg;
 
-	ret = target_read_u32(target, FLASH_COA_RPROT_FMA, &reg);
+	ret = target_read_u32(target, FLASH_COA_RPROT_FMA(abov32f1_info->dev), &reg);
 	if (ret != ERROR_OK)
 	    goto err;
 
@@ -337,20 +426,23 @@ static int abov32f1_set_rprotlvl(struct flash_bank *bank, uint32_t lvl)
 
 	memset(coabuf, 0x00, FLASH_PAGE_BUFFER_SIZE);
 
-	ret = target_read_memory(target, FLASH_COA_START_ADDR, FLASH_WORD_ALIGN, 
-					         FLASH_PAGE_BUFFER_SIZE / FLASH_WORD_ALIGN, coabuf);
+	ret = target_read_memory(target, FLASH_COA_START_ADDR(abov32f1_info->dev), FLASH_WORD_ALIGN, 
+					         abov32f1_info->dev->page_size / FLASH_WORD_ALIGN, coabuf);
 	if (ret != ERROR_OK)
 	    goto err;
 
 	pcoabuf[FLASH_COA_RPROT_LEVEL_IDX] = lvl;
+	if (pcoabuf[FLASH_COA_WDT_IDX] == 0xFFFFFFFF)
+	{
+		pcoabuf[FLASH_COA_WDT_IDX] = FLASH_WDT_DEFAULT;
+	}
 
 	/* erase coa */
-    ret = abov32f1_set_erase(bank, FLASH_COA_START_ADDR, erase_mode_page);
+    ret = abov32f1_set_erase(bank, FLASH_COA_START_ADDR(abov32f1_info->dev), erase_mode_page);
 	if (ret != ERROR_OK)
 		goto err;
 
-    ret = abov32f1_set_pagewrite(bank, coabuf, FLASH_COA_START_ADDR, FLASH_PAGE_BUFFER_SIZE, true);
-
+    ret = abov32f1_set_pagewrite(bank, coabuf, FLASH_COA_START_ADDR(abov32f1_info->dev), abov32f1_info->dev->page_size, true);
 err:
 	return ret;
 }
@@ -358,19 +450,32 @@ err:
 static int abov32f1_protect_check(struct flash_bank *bank)
 {
 	struct target *target = bank->target;
+	struct abov32f1_flash_bank *abov32f1_info = bank->driver_priv;
 	int ret = ERROR_OK;
-	uint32_t reg = 0;
+	uint32_t reg[FLASH_WPROT_REG_MAX_COUNT] = {0,};
+	uint32_t prot_reg_count;
 
-	/* read protection bits */
-	ret = target_read_u32(target, FLASH_COA_WPROT_FMA, &reg);
-	if (ret != ERROR_OK)
+	prot_reg_count = ((bank->num_prot_blocks-1) / 32) + 1;
+	if (prot_reg_count > FLASH_WPROT_REG_MAX_COUNT)
+	{
+		ret = ERROR_FAIL;
 		goto err;
+	}
+
+	for (unsigned int i = 0 ; i < prot_reg_count ; i++)
+	{
+		/* read protection bits */
+		ret = target_read_u32(target, FLASH_COA_WPROT_FMA(abov32f1_info->dev) + (i*4), &reg[i]);
+		if (ret != ERROR_OK)
+			goto err;
+	}
 
 #if defined DEBUG_LOG
-	LOG_INFO("cur wprotect:0x%08x, wprotect blocks:%d\n", reg, bank->num_prot_blocks);
+	LOG_INFO("prot reg count:%d, cur wprotect:0x%08x, 0x%08x, 0x%08x, 0x%08x, wprotect blocks:%d\n",
+		prot_reg_count, reg[0], reg[1], reg[2], reg[3], bank->num_prot_blocks);
 #endif
 	for (unsigned int i = 0; i < bank->num_prot_blocks; i++) {
-		bank->prot_blocks[i].is_protected = (reg & (FLASH_PROT_LOCK << i)) ? FLASH_PROT_UNLOCK : FLASH_PROT_LOCK;
+		bank->prot_blocks[i].is_protected = (reg[i / 32] & (FLASH_PROT_LOCK << (i % 32))) ? FLASH_PROT_UNLOCK : FLASH_PROT_LOCK;
 #if defined DEBUG_LOG
 		LOG_INFO("%d block is %s", i, (bank->prot_blocks[i].is_protected == 1) ? "lock" : "unlock");
 #endif
@@ -383,50 +488,153 @@ static int abov32f1_set_write_protect(struct flash_bank *bank, int set, uint32_t
 {
 	int ret = ERROR_OK;
 	struct target *target = bank->target;
+	struct abov32f1_flash_bank *abov32f1_info = bank->driver_priv;
+	uint32_t prot_reg_count;
 #if defined DEBUG_LOG
-    uint32_t reg = 0;
+    uint32_t reg[FLASH_WPROT_REG_MAX_COUNT] = {0,};
 #endif
-	uint32_t prot = 0;
-	unsigned char coabuf[FLASH_PAGE_BUFFER_SIZE];
+	uint32_t prot[FLASH_WPROT_REG_MAX_COUNT] = {0,};
 	uint32_t *pcoabuf = (uint32_t *)coabuf;
+	uint32_t prot_bit;
+	bool write_ops = false;
+
+	prot_reg_count = ((bank->num_prot_blocks-1) / 32) + 1;
+	if (prot_reg_count > FLASH_WPROT_REG_MAX_COUNT)
+	{
+		ret = ERROR_FAIL;
+		goto err;
+	}
 
 	memset(coabuf, 0x00, FLASH_PAGE_BUFFER_SIZE);
 
-	ret = target_read_memory(target, FLASH_COA_START_ADDR, FLASH_WORD_ALIGN, 
-					         FLASH_PAGE_BUFFER_SIZE / FLASH_WORD_ALIGN, coabuf);
+	ret = target_read_memory(target, FLASH_COA_START_ADDR(abov32f1_info->dev), FLASH_WORD_ALIGN, 
+					         abov32f1_info->dev->page_size / FLASH_WORD_ALIGN, coabuf);
 	if (ret != ERROR_OK)
 	    goto err;
 
 	for (unsigned int i = first; i <= last; i++)
-		prot |= (FLASH_PROT_LOCK << i);
+		prot[i / 32] |= (FLASH_PROT_LOCK << (i % 32));
 
 #if defined DEBUG_LOG
-	(void)target_read_u32(target, FLASH_COA_WPROT_FMA, &reg);
-	LOG_INFO("cur write protection:0x%08x, protection bits:0x%08x", reg, prot);
+	for (unsigned int i = 0 ; i < prot_reg_count ; i++)
+		(void)target_read_u32(target, FLASH_COA_WPROT_FMA(abov32f1_info->dev) + (i*4), &reg[i]);
+	LOG_INFO("prot reg count:%d, cur write protection:0x%08x 0x%08x 0x%08x 0x%08x, protection bits:0x%08x 0x%08x 0x%08x 0x%08x",
+		prot_reg_count, reg[0], reg[1], reg[2], reg[3], prot[0], prot[1], prot[2], prot[3]);
 #endif
 
-	if (set)
-		pcoabuf[FLASH_COA_WPROT_IDX] &= ~prot;
-	else
-		pcoabuf[FLASH_COA_WPROT_IDX] |= prot;
+	for (unsigned int i = 0 ; i < prot_reg_count ; i++)
+	{
+		prot_bit = pcoabuf[FLASH_COA_WPROT_IDX + i];
+
+		if (set)
+			prot_bit &= ~prot[i];
+		else
+			prot_bit |= prot[i];
+
+		if(pcoabuf[FLASH_COA_WPROT_IDX + i] != prot_bit)
+			write_ops = true;
+
+		pcoabuf[FLASH_COA_WPROT_IDX + i] = prot_bit;
+	}
+
+	if (!write_ops)
+	{
+		LOG_INFO("erase/write protection is already unset.");
+		ret = ERROR_OK;
+		goto err;
+	}
 
 	/* erase coa */
-    ret = abov32f1_set_erase(bank, FLASH_COA_START_ADDR, erase_mode_page);
+    ret = abov32f1_set_erase(bank, FLASH_COA_START_ADDR(abov32f1_info->dev), erase_mode_page);
     if (ret != ERROR_OK)
 	    goto err;
 
-    ret = abov32f1_set_pagewrite(bank, coabuf, FLASH_COA_START_ADDR, FLASH_PAGE_BUFFER_SIZE, true);
+    ret = abov32f1_set_pagewrite(bank, coabuf, FLASH_COA_START_ADDR(abov32f1_info->dev), abov32f1_info->dev->page_size, true);
     if (ret != ERROR_OK)
 	    goto err;
 
 #if defined DEBUG_LOG
-	(void)target_read_u32(target, FLASH_COA_WPROT_FMA, &reg);
-	LOG_INFO("new write protection:0x%08x", reg);
+	for (unsigned int i = 0 ; i < prot_reg_count ; i++)
+		(void)target_read_u32(target, FLASH_COA_WPROT_FMA(abov32f1_info->dev) + (i*4), &reg[i]);
+	LOG_INFO("prot reg count:%d, new write protection:0x%08x 0x%08x 0x%08x 0x%08x",
+		prot_reg_count, reg[0], reg[1], reg[2], reg[3]);
 #endif
 
 	/* update protection bits in a bank */
 	ret = abov32f1_protect_check(bank);
+err:
+	return ret;
+}
 
+static int abov32f1_erase_coa(struct flash_bank *bank)
+{
+	int ret = ERROR_OK;
+	struct abov32f1_flash_bank *abov32f1_info = bank->driver_priv;
+
+	/* backup data of coa */
+	ret = target_read_memory(bank->target, FLASH_COA_START_ADDR(abov32f1_info->dev), FLASH_WORD_ALIGN,
+					         abov32f1_info->dev->page_size / FLASH_WORD_ALIGN, coabuf);
+	if (ret != ERROR_OK)
+		goto err;
+
+	/* erase coa */
+	ret = abov32f1_set_erase(bank, FLASH_COA_START_ADDR(abov32f1_info->dev), erase_mode_page);
+	if (ret != ERROR_OK)
+		goto err;
+err:
+	return ret;
+}
+
+static int abov32f1_write_coa(struct flash_bank *bank, int set, uint32_t first, uint32_t last)
+{
+	int ret = ERROR_OK;
+	struct abov32f1_flash_bank *abov32f1_info = bank->driver_priv;
+	uint32_t prot_reg_count;
+#if defined DEBUG_LOG
+    struct target *target = bank->target;
+    uint32_t reg[FLASH_WPROT_REG_MAX_COUNT] = {0,};
+#endif
+	uint32_t prot[FLASH_WPROT_REG_MAX_COUNT] = {0,};
+	uint32_t *pcoabuf = (uint32_t *)coabuf;
+
+	prot_reg_count = ((bank->num_prot_blocks-1) / 32) + 1;
+	if (prot_reg_count > FLASH_WPROT_REG_MAX_COUNT)
+	{
+		ret = ERROR_FAIL;
+		goto err;
+	}
+
+	for (unsigned int i = first; i <= last; i++)
+		prot[i / 32] |= (FLASH_PROT_LOCK << (i % 32));
+
+#if defined DEBUG_LOG
+	for (unsigned int i = 0 ; i < prot_reg_count ; i++)
+		(void)target_read_u32(target, FLASH_COA_WPROT_FMA(abov32f1_info->dev) + (i*4), &reg[i]);
+	LOG_INFO("prot reg count:%d, cur write protection:0x%08x 0x%08x 0x%08x 0x%08x, protection bits:0x%08x 0x%08x 0x%08x 0x%08x",
+		prot_reg_count, reg[0], reg[1], reg[2], reg[3], prot[0], prot[1], prot[2], prot[3]);
+#endif
+
+	for (unsigned int i = 0 ; i < prot_reg_count ; i++)
+	{
+		if (set)
+			pcoabuf[FLASH_COA_WPROT_IDX + i] &= ~prot[i];
+		else
+			pcoabuf[FLASH_COA_WPROT_IDX + i] |= prot[i];
+	}
+
+    ret = abov32f1_set_pagewrite(bank, coabuf, FLASH_COA_START_ADDR(abov32f1_info->dev), abov32f1_info->dev->page_size, true);
+    if (ret != ERROR_OK)
+	    goto err;
+
+#if defined DEBUG_LOG
+	for (unsigned int i = 0 ; i < prot_reg_count ; i++)
+		(void)target_read_u32(target, FLASH_COA_WPROT_FMA(abov32f1_info->dev) + (i*4), &reg[i]);
+	LOG_INFO("prot reg count:%d, new write protection:0x%08x 0x%08x 0x%08x 0x%08x",
+		prot_reg_count, reg[0], reg[1], reg[2], reg[3]);
+#endif
+
+	/* update protection bits in a bank */
+	ret = abov32f1_protect_check(bank);
 err:
 	return ret;
 }
@@ -434,6 +642,7 @@ err:
 static int abov32f1_set_erase(struct flash_bank *bank, uint32_t pageaddr, enum erase_mode mode)
 {
 	struct target *target = bank->target;
+	struct abov32f1_flash_bank *abov32f1_info = bank->driver_priv;
 	int ret = ERROR_OK;
 
 	/* set operation mode */
@@ -445,15 +654,15 @@ static int abov32f1_set_erase(struct flash_bank *bank, uint32_t pageaddr, enum e
 	switch (mode) {
 		case erase_mode_chip:
 	        target_write_u32(target, FLASH_ADDR_REG, FLASH_ERASE_CHIP);
-	        target_write_u32(target, FLASH_CR_REG, FLASH_CR_WTIDKY_VAL | FLASH_CR_OPS_FMA_MODE | FLASH_CR_ERASE_CHIP);
+	        target_write_u32(target, FLASH_CR_REG, FLASH_CR_WTIDKY_VAL | FLASH_CR_OPS_FMA_MODE | abov32f1_info->dev->ops.ers_chipset_bit);
 			break;
 		default:
 			target_write_u32(target, FLASH_ADDR_REG, pageaddr | FLASH_BASE_ADDR);
 #if 1
-			if (pageaddr == FLASH_COA_START_ADDR)
-	            target_write_u32(target, FLASH_CR_REG, FLASH_CR_WTIDKY_VAL | FLASH_CR_OPS_COA_MODE | FLASH_CR_ERASE_PAGE);
+			if (pageaddr == FLASH_COA_START_ADDR(abov32f1_info->dev))
+	            target_write_u32(target, FLASH_CR_REG, FLASH_CR_WTIDKY_VAL | FLASH_CR_OPS_COA_MODE | abov32f1_info->dev->ops.ers_page_bit);
 			else
-	            target_write_u32(target, FLASH_CR_REG, FLASH_CR_WTIDKY_VAL | FLASH_CR_OPS_FMA_MODE | FLASH_CR_ERASE_PAGE);
+	            target_write_u32(target, FLASH_CR_REG, FLASH_CR_WTIDKY_VAL | FLASH_CR_OPS_FMA_MODE | abov32f1_info->dev->ops.ers_page_bit);
 			/* page erase mode */
 #endif
 			break;
@@ -497,12 +706,15 @@ static int abov32f1_erase(struct flash_bank *bank, unsigned int first,
 	int ret = ERROR_OK;
 	uint32_t sec_cnt = 0;
 	uint32_t sec_offset = first;
-	uint32_t wprot_first = 0, wprot_last = 0;
 	uint32_t start_addr = 0, end_addr = 0;
 
 #if defined DEBUG_LOG
 	LOG_INFO("erase first=%d last=%d", first, last);
 #endif
+
+	ret = abov32f1_erase_coa(bank);
+	if (ret != ERROR_OK)
+		goto err;
 
 	/* find fist and last protect block index */
 	start_addr = first * abov32f1_info->dev->page_size;
@@ -526,7 +738,6 @@ static int abov32f1_erase(struct flash_bank *bank, unsigned int first,
 #if defined DEBUG_LOG
 	LOG_INFO("start=0x%x, end=0x%x, first=%d, last=%d\n", start_addr, end_addr, wprot_first, wprot_last);
 #endif
-	abov32f1_set_write_protect(bank, FLASH_PROT_UNLOCK, wprot_first, wprot_last);
 
 	sec_cnt = (last - first) + 1;
 	if (sec_cnt == bank->num_sectors) {
@@ -554,7 +765,7 @@ static int abov32f1_erase(struct flash_bank *bank, unsigned int first,
 		for (unsigned int i = first; i <= last; i++)
 			bank->sectors[i].is_erased = 1;
 	}
-
+err:
 	return ret;
 }
 
@@ -566,6 +777,7 @@ static int abov32f1_protect(struct flash_bank *bank, int set, unsigned int first
 static int abov32f1_write(struct flash_bank *bank, const uint8_t *buffer, uint32_t offset, uint32_t count)
 {
 	struct target *target = bank->target;
+	struct abov32f1_flash_bank *abov32f1_info = bank->driver_priv;
 	int ret = ERROR_OK;
 	uint8_t *pbuf = (uint8_t *)buffer;
 
@@ -577,17 +789,26 @@ static int abov32f1_write(struct flash_bank *bank, const uint8_t *buffer, uint32
 		return ERROR_TARGET_NOT_HALTED;
 	}
 
-	quot = count / FLASH_PAGE_BUFFER_SIZE;
-    remaind = count % FLASH_PAGE_BUFFER_SIZE;
+	ret = abov32f1_write_coa(bank, FLASH_PROT_UNLOCK, wprot_first, wprot_last);
+	if (ret != ERROR_OK)
+	{
+		LOG_ERROR("couldn't write coa data to flash memory.");
+		goto err;
+	}
+
+	keep_alive();
+
+	quot = count / abov32f1_info->dev->page_size;
+    remaind = count % abov32f1_info->dev->page_size;
 	idx = 0;
 
 	do {
 		if(!(idx % 8))
-  		    LOG_INFO("write : 0x%08x.", offset + (idx * FLASH_PAGE_BUFFER_SIZE));
+  		    LOG_INFO("write : 0x%08x.", offset + (idx * abov32f1_info->dev->page_size));
 
-	    ret = abov32f1_set_pagewrite(bank, &pbuf[idx * FLASH_PAGE_BUFFER_SIZE],
-			                         offset + (idx * FLASH_PAGE_BUFFER_SIZE), 
-									 FLASH_PAGE_BUFFER_SIZE, false);
+	    ret = abov32f1_set_pagewrite(bank, &pbuf[idx * abov32f1_info->dev->page_size],
+			                         offset + (idx * abov32f1_info->dev->page_size), 
+									 abov32f1_info->dev->page_size, false);
        	if (ret != ERROR_OK)
 		{
 	        LOG_ERROR("couldn't write data to flash memory.");
@@ -607,14 +828,17 @@ static int abov32f1_write(struct flash_bank *bank, const uint8_t *buffer, uint32
 
 	if (remaind != 0)
     {
-  	    LOG_INFO("write : 0x%08x.", offset + (idx * FLASH_PAGE_BUFFER_SIZE));
-	    ret = abov32f1_set_pagewrite(bank, &pbuf[idx * FLASH_PAGE_BUFFER_SIZE], 
-						             offset + (idx * FLASH_PAGE_BUFFER_SIZE), 
+  	    LOG_INFO("write : 0x%08x.", offset + (idx * abov32f1_info->dev->page_size));
+	    ret = abov32f1_set_pagewrite(bank, &pbuf[idx * abov32f1_info->dev->page_size], 
+						             offset + (idx * abov32f1_info->dev->page_size), 
 									 remaind, false);
        	if (ret != ERROR_OK)
-	        LOG_ERROR("couldn't write data to flash memory.");
-    }
+       	{
+       	    LOG_ERROR("couldn't write data to flash memory.");
+       	    goto err;
+       	}
 
+    }
 err:
 	return ret;
 }
