@@ -27,6 +27,10 @@
 #define A31L21X_FLASH_CODE_BASE_ADDR	0x10000000
 #define A31L21X_FLASH_REG_ADDR			0x40000100
 
+#define A31S13X_FLASH_128KB				0x11340
+#define A31S13X_FLASH_CODE_BASE_ADDR	0x10000000
+#define A31S13X_FLASH_REG_ADDR			0x40001B00
+
 #define ABOV_CHIP_ID_MASK				0xFFFFF
 
 /* Flash Base Address */
@@ -129,6 +133,14 @@ static const struct abov32f2_dev {
 }, {
 	.id = A31L21X_FLASH_128KB,
 	.device_str = "A31L214 : FLASH 128KB / SRAM 20KB",
+	.code_size = 0x20000,
+	.system_size = 0x0,
+	.page_size = 0x100,
+	.wprot_seg_size = 0x800,
+	.abwprot = false
+}, {
+	.id = A31S13X_FLASH_128KB,
+	.device_str = "A31S134 : FLASH 128KB / SRAM 16KB",
 	.code_size = 0x20000,
 	.system_size = 0x0,
 	.page_size = 0x100,
