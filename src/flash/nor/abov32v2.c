@@ -514,6 +514,12 @@ static int abov32v2_erase(struct flash_bank *bank, unsigned int first,
 
 				sec_offset += FLASH_4KB_SECTOR_BY_PAGE_COUNT;
 				sec_cnt -= FLASH_4KB_SECTOR_BY_PAGE_COUNT;
+			} else {
+#if defined DEBUG_LOG
+				LOG_INFO("error : sec_cnt remain=%d, sector num=%d", sec_cnt, sec_offset);
+#endif
+				ret = ERROR_FAIL;
+				break;
 			}
 		}
 	}

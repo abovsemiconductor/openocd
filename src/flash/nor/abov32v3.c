@@ -606,29 +606,6 @@ static int abov32v3_erase(struct flash_bank *bank, unsigned int first,
 
 				sec_offset++;
 				sec_cnt--;
-			} else if ((erase_info->support_mode & erase_mode_1kb)
-					&& ((sec_offset & FLASH_CODE_1KB_SECTOR_IDX_MASK) != 0x0
-					|| sec_cnt < flash_1kb_cnt)) {
-#if defined DEBUG_LOG
-				LOG_INFO("1KB erase : sec_cnt remain=%d, sector num=%d", sec_cnt, sec_offset);
-#endif
-				ret = abov32v3_set_erase(bank, bank->sectors[sec_offset].offset, erase_mode_1kb);
-				if (ret != ERROR_OK)
-					break;
-
-				sec_offset += flash_1kb_cnt;
-				sec_cnt -= flash_1kb_cnt;
-			} else if ((erase_info->support_mode & erase_mode_2kb)
-					&& (sec_cnt >= flash_2kb_cnt)) {
-#if defined DEBUG_LOG
-				LOG_INFO("2KB erase : sec_cnt remain=%d, sector num=%d", sec_cnt, sec_offset);
-#endif
-				ret = abov32v3_set_erase(bank, bank->sectors[sec_offset].offset, erase_mode_2kb);
-				if (ret != ERROR_OK)
-					break;
-
-				sec_offset += flash_2kb_cnt;
-				sec_cnt -= flash_2kb_cnt;
 			} else if ((erase_info->support_mode & erase_mode_4kb)
 					&& (sec_cnt >= flash_4kb_cnt)) {
 #if defined DEBUG_LOG
@@ -640,6 +617,34 @@ static int abov32v3_erase(struct flash_bank *bank, unsigned int first,
 
 				sec_offset += flash_4kb_cnt;
 				sec_cnt -= flash_4kb_cnt;
+			} else if ((erase_info->support_mode & erase_mode_2kb)
+					&& (sec_cnt >= flash_2kb_cnt)) {
+#if defined DEBUG_LOG
+				LOG_INFO("2KB erase : sec_cnt remain=%d, sector num=%d", sec_cnt, sec_offset);
+#endif
+				ret = abov32v3_set_erase(bank, bank->sectors[sec_offset].offset, erase_mode_2kb);
+				if (ret != ERROR_OK)
+					break;
+
+				sec_offset += flash_2kb_cnt;
+				sec_cnt -= flash_2kb_cnt;
+			} else if ((erase_info->support_mode & erase_mode_1kb)
+					&& (sec_cnt >= flash_1kb_cnt)) {
+#if defined DEBUG_LOG
+				LOG_INFO("1KB erase : sec_cnt remain=%d, sector num=%d", sec_cnt, sec_offset);
+#endif
+				ret = abov32v3_set_erase(bank, bank->sectors[sec_offset].offset, erase_mode_1kb);
+				if (ret != ERROR_OK)
+					break;
+
+				sec_offset += flash_1kb_cnt;
+				sec_cnt -= flash_1kb_cnt;
+			} else {
+#if defined DEBUG_LOG
+				LOG_INFO("error : sec_cnt remain=%d, sector num=%d", sec_cnt, sec_offset);
+#endif
+				ret = ERROR_FAIL;
+				break;
 			}
 		}
 	}
