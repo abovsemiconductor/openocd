@@ -46,6 +46,10 @@
 #define A31G33X_FLASH_CODE_BASE_ADDR	0x10000000
 #define A31G33X_FLASH_REG_ADDR			0x40001B00
 
+#define A31G34X_FLASH_256KB				0x13460
+#define A31G34X_FLASH_CODE_BASE_ADDR	0x10000000
+#define A31G34X_FLASH_REG_ADDR			0x40001B00
+
 #define ABOV_CHIP_ID_MASK				0xFFFFF
 
 /* Flash Base Address */
@@ -252,6 +256,19 @@ static const struct abov32f1_dev {
 }, {
 	.id = A31G33X_FLASH_256KB,
 	.device_str = "A31G336 : FLASH 256KB / SRAM 32KB",
+	.code_size = 0x40000,
+	.system_size = 0x8000,
+	.page_size = 0x200,
+	.wprot_seg_size = 0x800,
+	.abwprot = false,
+	.coa_addr = FLASH_COA_START_ADDR_V2,
+	.page_buf_addr = 0x0,
+	.ops.ers_chipset_bit = BIT(4),
+	.ops.ers_page_bit = BIT(0),
+	.ops.wr_page_bit = BIT(2),
+}, {
+	.id = A31G34X_FLASH_256KB,
+	.device_str = "A31G346 : FLASH 256KB / SRAM 32KB",
 	.code_size = 0x40000,
 	.system_size = 0x8000,
 	.page_size = 0x200,
