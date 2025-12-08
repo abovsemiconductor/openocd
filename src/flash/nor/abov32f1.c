@@ -122,6 +122,7 @@
 #define FLASH_ERASE_TIMEOUT				100
 #define FLASH_WORD_ALIGN				4
 #define FLASH_WPROT_REG_MAX_COUNT		4
+#define FLASH_RPROT_MASK				0x03
 
 enum erase_mode {
 	erase_mode_page,
@@ -434,7 +435,7 @@ static int abov32f1_set_rprotlvl(struct flash_bank *bank, uint32_t lvl)
 	if (ret != ERROR_OK)
 	    goto err;
 
-	if (reg == lvl)
+	if ((reg == lvl) && ((reg & FLASH_RPROT_MASK) == (FLASH_RPROT_LEVEL_0 & FLASH_RPROT_MASK)))
 	{
 		LOG_INFO("read protect level is already set.");
 		ret = ERROR_OK;
@@ -452,6 +453,15 @@ static int abov32f1_set_rprotlvl(struct flash_bank *bank, uint32_t lvl)
 	if (pcoabuf[FLASH_COA_WDT_IDX] == 0xFFFFFFFF)
 	{
 		pcoabuf[FLASH_COA_WDT_IDX] = FLASH_WDT_DEFAULT;
+	}
+
+	/* erase bulk */
+	if((reg & FLASH_RPROT_MASK) != (FLASH_RPROT_LEVEL_0 & FLASH_RPROT_MASK))
+	{
+		LOG_INFO("bulk erase, read protect is 0x%x", reg & FLASH_RPROT_MASK);
+		ret = abov32f1_set_erase(bank, FLASH_BASE_ADDR, erase_mode_chip);
+		if (ret != ERROR_OK)
+			goto err;
 	}
 
 	/* erase coa */
