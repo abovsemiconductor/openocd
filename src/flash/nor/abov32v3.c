@@ -45,6 +45,7 @@
 /* A34G43x Serise */
 #define A34G43X_FLASH					0x344400
 #define A34G43X_FLASH_2048KB			0x3444A0
+#define A34G43X_FLASH_1024KB			0x3444A1
 
 /* A31C14x Serise */
 #define A31C14X_FLASH					0x311400
@@ -323,6 +324,19 @@ static const struct abov32v3_dev {
 	.erase.page_bit = BIT(1),
 	.erase.sector_4kb_bit = BIT(2),
 	.erase.min_sector_by_page_cnt = 4, 
+}, {
+	.id = A34G43X_FLASH_1024KB,
+	.device_str = "A34G430 : FLASH 1024KB / SRAM 256KB",
+	.enable_bit = BIT(25),
+	.code_size = 0x100000,
+	.system_size = 0x0,
+	.page_size = 0x400,
+	.wprot_seg_size = 0x8000,
+	.erase.support_mode = erase_mode_page | erase_mode_4kb | erase_mode_chip,
+	.erase.chipset_bit = BIT(3),
+	.erase.page_bit = BIT(1),
+	.erase.sector_4kb_bit = BIT(2),
+	.erase.min_sector_by_page_cnt = 4,
 }, {
 	.id = A34M42X_FLASH_1024KB,
 	.device_str = "A34M420 : FLASH 1024KB / SRAM 64KB",
