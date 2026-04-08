@@ -24,7 +24,7 @@
 #define ABOV_CHIP_ID_REG				0x4000F004
 
 /* A34M41x Serise */
-#define A34M41X_FLASH					0x34A000
+#define A34M41X_FLASH					0x4D34A000
 #define A34M41X_FLASH_512KB_SRAM_16KB	0x34A020
 #define A34M41X_FLASH_512KB_SRAM_32KB	0x34A010
 #define A34M41X_FLASH_512KB_SRAM_64KB	0x34A000
@@ -38,33 +38,37 @@
 #define A34M41X_FLASH_128KB_SRAM_64KB	0x34A002
 
 /* A33M11x Serise */
-#define A33M11X_FLASH					0x33A000
+#define A33M11X_FLASH					0x4D33A000
 #define A33M11X_FLASH_256KB				0x33A004
 #define A33M11X_FLASH_128KB				0x33A005
 
 /* A34G43x Serise */
-#define A34G43X_FLASH					0x344400
+#define A34G43X_FLASH					0x47344400
 #define A34G43X_FLASH_2048KB			0x3444A0
 #define A34G43X_FLASH_1024KB			0x3444A1
 
 /* A31C1xx Serise */
-#define A31C14X_FLASH					0x311400
+#define A31C14X_FLASH					0x43311400
 #define A31C14X_FLASH_128KB				0x311440
 #define A31C14X_FLASH_64KB				0x311430
-#define A31C12X_FLASH					0x311200
+#define A31C12X_FLASH					0x43311200
 #define A31C12X_FLASH_32KB				0x311220
 #define A31C12X_FLASH_16KB				0x311221
 
 /* A34M42x Serise */
-#define A34M42X_FLASH					0x344200
+#define A34M42X_FLASH					0x4D344200
 #define A34M42X_FLASH_1024KB			0x344200
 
 /* A34L71x Serise */
-#define A34L71X_FLASH					0x347100
+#define A34L71X_FLASH					0x4C347100
 #define A34L71X_FLASH_256KB				0x347160
 
+/* A34M71x Serise */
+#define A34M71X_FLASH					0x4D347100
+#define A34M71X_FLASH_512KB				0x347180
+
 #define ABOV_CHIP_ID_MASK				0xFFFFFF
-#define ABOV_CHIP_ID_SERIES_MASK		0xFFFF00
+#define ABOV_CHIP_ID_SERIES_MASK		0xFFFFFF00
 
 /* Code Flash Access Key */
 #define FLASH_CODE_ACCESS_KEY_1			0x01234567
@@ -216,9 +220,18 @@ static const struct abov32v3_device_reg {
 	.wprot[1] = 0,
 	.cntl = (FLASH_CODE_REG_START_ADDR_V1 | FLASH_CODE_CTRL_REG_V2),
 	.stats = (FLASH_CODE_REG_START_ADDR_V1 | FLASH_CODE_STAT_REG_V2)
+}, {
+	.id = A34M71X_FLASH,
+	.cfg = (FLASH_CODE_REG_START_ADDR_V1 | FLASH_CODE_CFG_REG_V1),
+	.accs = (FLASH_CODE_REG_START_ADDR_V1 | FLASH_CODE_ACCESS_REG_V1),
+	.wprot[0] = (FLASH_CODE_REG_START_ADDR_V1 | FLASH_CODE_WPROT0_REG_V1),
+	.wprot[1] = 0,
+	.cntl = (FLASH_CODE_REG_START_ADDR_V1 | FLASH_CODE_CTRL_REG_V2),
+	.stats = (FLASH_CODE_REG_START_ADDR_V1 | FLASH_CODE_STAT_REG_V2)
 }};
 
 static const struct abov32v3_dev {
+	uint32_t serise;
 	uint32_t id;
 	const char *device_str;
 	uint32_t enable_bit;
@@ -229,6 +242,7 @@ static const struct abov32v3_dev {
 	struct abov32v3_erase erase;
 } abov32v3_devices[] = {
 {
+	.serise = A34M41X_FLASH,
 	.id = A34M41X_FLASH_128KB_SRAM_32KB,
 	.device_str = "A34M414 : FLASH 128KB / SRAM 32KB ",
 	.enable_bit = 0,
@@ -243,6 +257,7 @@ static const struct abov32v3_dev {
 	.erase.sector_4kb_bit = BIT(3),
 	.erase.min_sector_by_page_cnt = 2,
 }, {
+	.serise = A34M41X_FLASH,
 	.id = A34M41X_FLASH_256KB_SRAM_64KB,
 	.device_str = "A34M416 : FLASH 256KB / SRAM 64KB",
 	.enable_bit = 0,
@@ -257,6 +272,7 @@ static const struct abov32v3_dev {
 	.erase.sector_4kb_bit = BIT(3),
 	.erase.min_sector_by_page_cnt = 2,
 }, {
+	.serise = A34M41X_FLASH,
 	.id = A34M41X_FLASH_512KB_SRAM_64KB,
 	.device_str = "A34M418 : FLASH 512KB / SRAM 64KB",
 	.enable_bit = 0,
@@ -271,6 +287,7 @@ static const struct abov32v3_dev {
 	.erase.sector_4kb_bit = BIT(3),
 	.erase.min_sector_by_page_cnt = 2,
 }, {
+	.serise = A33M11X_FLASH,
 	.id = A33M11X_FLASH_128KB,
 	.device_str = "A33M114 : FLASH 128KB / SRAM 16KB",
 	.enable_bit = BIT(25),
@@ -284,6 +301,7 @@ static const struct abov32v3_dev {
 	.erase.sector_2kb_bit = BIT(2),
 	.erase.min_sector_by_page_cnt = 4,
 }, {
+	.serise = A33M11X_FLASH,
 	.id = A33M11X_FLASH_256KB,
 	.device_str = "A33M116 : FLASH 256KB / SRAM 16KB",
 	.enable_bit = BIT(25),
@@ -297,6 +315,7 @@ static const struct abov32v3_dev {
 	.erase.sector_2kb_bit = BIT(2),
 	.erase.min_sector_by_page_cnt = 4,
 }, {
+	.serise = A31C14X_FLASH,
 	.id = A31C14X_FLASH_128KB,
 	.device_str = "A31C144 : FLASH 128KB / SRAM 8KB",
 	.enable_bit = BIT(25),
@@ -310,6 +329,7 @@ static const struct abov32v3_dev {
 	.erase.sector_2kb_bit = BIT(2),
 	.erase.min_sector_by_page_cnt = 4, 
 }, {
+	.serise = A31C14X_FLASH,
 	.id = A31C14X_FLASH_64KB,
 	.device_str = "A31C143 : FLASH 64KB / SRAM 8KB",
 	.enable_bit = BIT(25),
@@ -323,6 +343,7 @@ static const struct abov32v3_dev {
 	.erase.sector_2kb_bit = BIT(2),
 	.erase.min_sector_by_page_cnt = 4, 
 }, {
+	.serise = A31C12X_FLASH,
 	.id = A31C12X_FLASH_32KB,
 	.device_str = "A31C122 : FLASH 32KB / SRAM 6KB",
 	.enable_bit = BIT(25),
@@ -336,6 +357,7 @@ static const struct abov32v3_dev {
 	.erase.sector_2kb_bit = BIT(2),
 	.erase.min_sector_by_page_cnt = 4, 
 }, {
+	.serise = A31C12X_FLASH,
 	.id = A31C12X_FLASH_16KB,
 	.device_str = "A31C121 : FLASH 16KB / SRAM 6KB",
 	.enable_bit = BIT(25),
@@ -349,6 +371,7 @@ static const struct abov32v3_dev {
 	.erase.sector_2kb_bit = BIT(2),
 	.erase.min_sector_by_page_cnt = 4, 
 }, {
+	.serise = A34G43X_FLASH,
 	.id = A34G43X_FLASH_2048KB,
 	.device_str = "A34G43A : FLASH 2048KB / SRAM 256KB",
 	.enable_bit = BIT(25),
@@ -362,6 +385,7 @@ static const struct abov32v3_dev {
 	.erase.sector_4kb_bit = BIT(2),
 	.erase.min_sector_by_page_cnt = 4, 
 }, {
+	.serise = A34G43X_FLASH,
 	.id = A34G43X_FLASH_1024KB,
 	.device_str = "A34G430 : FLASH 1024KB / SRAM 256KB",
 	.enable_bit = BIT(25),
@@ -375,6 +399,7 @@ static const struct abov32v3_dev {
 	.erase.sector_4kb_bit = BIT(2),
 	.erase.min_sector_by_page_cnt = 4,
 }, {
+	.serise = A34M42X_FLASH,
 	.id = A34M42X_FLASH_1024KB,
 	.device_str = "A34M420 : FLASH 1024KB / SRAM 64KB",
 	.enable_bit = BIT(25),
@@ -388,10 +413,25 @@ static const struct abov32v3_dev {
 	.erase.sector_2kb_bit = BIT(2),
 	.erase.min_sector_by_page_cnt = 4,
 }, {
+	.serise = A34L71X_FLASH,
 	.id = A34L71X_FLASH_256KB,
 	.device_str = "A34L716 : FLASH 256KB / SRAM 24KB",
 	.enable_bit = BIT(25),
 	.code_size = 0x40000,
+	.system_size = 0x0,
+	.page_size = 0x200,
+	.wprot_seg_size = 0x4000,
+	.erase.support_mode = erase_mode_page | erase_mode_2kb | erase_mode_chip,
+	.erase.chipset_bit = BIT(3),
+	.erase.page_bit = BIT(1),
+	.erase.sector_2kb_bit = BIT(2),
+	.erase.min_sector_by_page_cnt = 4,
+}, {
+	.serise = A34M71X_FLASH,
+	.id = A34M71X_FLASH_512KB,
+	.device_str = "A34M718 : FLASH 512KB / SRAM 64KB",
+	.enable_bit = BIT(25),
+	.code_size = 0x80000,
 	.system_size = 0x0,
 	.page_size = 0x200,
 	.wprot_seg_size = 0x4000,
@@ -462,8 +502,9 @@ static int abov32v3_get_chipset_id(struct flash_bank *bank, uint32_t *chipset_id
 const struct abov32v3_dev *abov32v3_find_device(uint32_t id)
 {
 	for (unsigned int i = 0; i < ARRAY_SIZE(abov32v3_devices); i++)
-		if ((id & ABOV_CHIP_ID_MASK) == abov32v3_devices[i].id)
-			return &abov32v3_devices[i];
+		if ((id & ABOV_CHIP_ID_SERIES_MASK) == abov32v3_devices[i].serise)
+			if ((id & ABOV_CHIP_ID_MASK) == abov32v3_devices[i].id)
+				return &abov32v3_devices[i];
 	return NULL;
 }
 
