@@ -111,6 +111,13 @@
 #define FLASH_CR_OPS_FMA_MODE           (0xA4 << 8)
 #define FLASH_CR_WTIDKY_VAL             (0x6C93 << 16)
 
+/* Flash Bulk Erase Control Reg bit position */
+#define FLASH_BCR_OPS_COA_BULK          (0x05)
+#define FLASH_BCR_OPS_COA_PAGE1         (FLASH_BCR_OPS_COA_BULK << 0)
+#define FLASH_BCR_OPS_COA_PAGE2         (FLASH_BCR_OPS_COA_BULK << 4)
+#define FLASH_BCR_OPS_COA_PAGE3         (FLASH_BCR_OPS_COA_BULK << 8)
+#define FLASH_BCR_WTIDKY_VAL            (0xC1BEU << 16)
+
 /* Flash Status Reg bit position */
 #define FLASH_WBUSY_REG_BUSY			BIT(7)
 
@@ -437,7 +444,7 @@ static int abov32f1_set_rprotlvl(struct flash_bank *bank, uint32_t lvl)
 
 	if ((reg == lvl) && ((reg & FLASH_RPROT_MASK) == (FLASH_RPROT_LEVEL_0 & FLASH_RPROT_MASK)))
 	{
-		LOG_INFO("read protect level is already set.");
+		LOG_INFO("read protect level 0 is already set.");
 		ret = ERROR_OK;
 	    goto err;
 	}
@@ -459,7 +466,7 @@ static int abov32f1_set_rprotlvl(struct flash_bank *bank, uint32_t lvl)
 	if((reg & FLASH_RPROT_MASK) != (FLASH_RPROT_LEVEL_0 & FLASH_RPROT_MASK))
 	{
 		LOG_INFO("bulk erase, read protect is 0x%x", reg & FLASH_RPROT_MASK);
-		ret = abov32f1_set_erase(bank, FLASH_BASE_ADDR, erase_mode_chip);
+		ret = abov32f1_set_erase(bank, FLASH_COA_START_ADDR(abov32f1_info->dev), erase_mode_chip);
 		if (ret != ERROR_OK)
 			goto err;
 	}
@@ -680,6 +687,10 @@ static int abov32f1_set_erase(struct flash_bank *bank, uint32_t pageaddr, enum e
 	/* select erase area mode */
 	switch (mode) {
 		case erase_mode_chip:
+	        if (pageaddr == FLASH_COA_START_ADDR(abov32f1_info->dev)) {
+	            LOG_INFO("set CNF1BEN bit in the BCR register");
+	            target_write_u32(target, FLASH_COA_BULK_REG, FLASH_BCR_WTIDKY_VAL | FLASH_BCR_OPS_COA_PAGE1);
+	        }
 	        target_write_u32(target, FLASH_ADDR_REG, FLASH_ERASE_CHIP);
 	        target_write_u32(target, FLASH_CR_REG, FLASH_CR_WTIDKY_VAL | FLASH_CR_OPS_FMA_MODE | abov32f1_info->dev->ops.ers_chipset_bit);
 			break;

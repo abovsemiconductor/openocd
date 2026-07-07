@@ -35,6 +35,7 @@
 
 /* Flash Base Address */
 #define FLASH_BASE_ADDR                 0x10000000
+#define DFLASH_BASE_ADDR                0x18800000
 
 /* Flash Mode */
 #define FLASH_CODE_ADR_RESET_CMD        0x5FFFFF80
@@ -42,8 +43,15 @@
 #define FLASH_CODE_IDR1_CMD             0x08192A3B
 #define FLASH_CODE_IDR2_CMD             0x4C5D6E7F
 
+/* DFlash Mode */
+#define DFLASH_CODE_ADR_RESET_CMD       0x5FFF9990
+#define DFLASH_CODE_ADR_CMD             0x59999990
+#define DFLASH_CODE_IDR1_CMD            0xA9C46E91
+#define DFLASH_CODE_IDR2_CMD            0x78F5B3D2
+
 /* Flash Chip Erase Value */
 #define FLASH_CODE_ERASE_CHIP           0x5F9A30D7
+#define DFLASH_CODE_ERASE_CHIP          0x4BC27F54
 
 /* Flash Read Protection Level 0 */
 #define FLASH_RPROT_LEVEL_0             0x69C8A273
@@ -60,9 +68,21 @@
 #define FLASH_CODE_COA_BULK_REG         (FLASH_CODE_REG_START_ADDR | 0x00000010)
 #define FLASH_CODE_ERR_REG              (FLASH_CODE_REG_START_ADDR | 0x00000014)
 
+/* DFlash Reg Offset */
+#define DFLASH_CODE_REG_START_ADDR      0x40001D00
+#define DFLASH_CODE_ADDR_REG            (DFLASH_CODE_REG_START_ADDR | 0x00000000)
+#define DFLASH_CODE_IDR1_REG            (DFLASH_CODE_REG_START_ADDR | 0x00000004)
+#define DFLASH_CODE_IDR2_REG            (DFLASH_CODE_REG_START_ADDR | 0x00000008)
+#define DFLASH_CODE_CR_REG              (DFLASH_CODE_REG_START_ADDR | 0x0000000C)
+#define DFLASH_CODE_ERR_REG             (DFLASH_CODE_REG_START_ADDR | 0x00000014)
+
 /* Flash Page Buffer */
 #define FLASH_CODE_PAGE_BUFFER_ADDR     0x40001C00
 #define FLASH_CODE_PAGE_BUFFER_SIZE     256
+
+/* DFlash Page Buffer */
+#define DFLASH_CODE_PAGE_BUFFER_ADDR    0x40001E00
+#define DFLASH_CODE_PAGE_BUFFER_SIZE    32
 
 /* Flash Configration Option Area */
 #define FLASH_COA_START_ADDR            0x1FFFF200
@@ -92,6 +112,14 @@
 #define FLASH_CODE_CR_OPS_COA_MODE           (0x38 << 8)
 #define FLASH_CODE_CR_OPS_FMA_MODE           (0xA4 << 8)
 #define FLASH_CODE_CR_WTIDKY_VAL             (0x6C93 << 16)
+#define DFLASH_CODE_CR_WTIDKY_VAL            (0xB69CU << 16)
+
+/* Flash Bulk Erase Control Reg bit position */
+#define FLASH_CODE_BCR_OPS_COA_BULK          (0x05)
+#define FLASH_CODE_BCR_OPS_COA_PAGE1         (FLASH_CODE_BCR_OPS_COA_BULK << 0)
+#define FLASH_CODE_BCR_OPS_COA_PAGE2         (FLASH_CODE_BCR_OPS_COA_BULK << 4)
+#define FLASH_CODE_BCR_OPS_COA_PAGE3         (FLASH_CODE_BCR_OPS_COA_BULK << 8)
+#define FLASH_CODE_BCR_WTIDKY_VAL            (0xC1BEU << 16)
 
 /* Flash Status Reg bit position */
 #define FLASH_CODE_WBUSY_REG_BUSY			 BIT(7)
@@ -211,6 +239,95 @@ err:
 	return ret;
 }
 
+static int abov32f2_dflash_wait_busy(struct flash_bank *bank, int timeout)
+{
+	struct target *target = bank->target;
+	uint32_t busy = 0;
+
+	while (1) {
+		int ret = target_read_u32(target, DFLASH_CODE_CR_REG, &busy);
+		if (ret != ERROR_OK)
+			return ret;
+
+		if (!(busy & FLASH_CODE_WBUSY_REG_BUSY))
+			break;
+
+		if (timeout-- <= 0)
+			return ERROR_TIMEOUT_REACHED;
+	}
+
+	return ERROR_OK;
+}
+
+static int abov32f2_dflash_set_preops(struct flash_bank *bank)
+{
+	struct target *target = bank->target;
+	uint8_t pagebuf[DFLASH_CODE_PAGE_BUFFER_SIZE];
+	int ret;
+
+	/* clear error flag */
+	ret = target_write_u32(target, DFLASH_CODE_ERR_REG, 0x00000001);
+	if (ret != ERROR_OK)
+	    goto err;
+
+	/* operation mode */
+	ret = target_write_u32(target, DFLASH_CODE_ADDR_REG, DFLASH_CODE_ADR_CMD);
+	if (ret != ERROR_OK)
+	    goto err;
+	ret = target_write_u32(target, DFLASH_CODE_IDR1_REG, DFLASH_CODE_IDR1_CMD);
+	if (ret != ERROR_OK)
+	    goto err;
+	ret = target_write_u32(target, DFLASH_CODE_IDR2_REG, DFLASH_CODE_IDR2_CMD);
+	if (ret != ERROR_OK)
+	    goto err;
+
+	/* clear buffer */
+	ret = target_write_u32(target, DFLASH_CODE_CR_REG, DFLASH_CODE_CR_WTIDKY_VAL | FLASH_CODE_CR_PAGE_BUF_RESET);
+	if (ret != ERROR_OK)
+	    goto err;
+
+	memset(pagebuf, 0xff, DFLASH_CODE_PAGE_BUFFER_SIZE);
+
+	ret = target_write_memory(target, DFLASH_CODE_PAGE_BUFFER_ADDR, 4, DFLASH_CODE_PAGE_BUFFER_SIZE / 4, pagebuf);
+
+err:
+	return ret;
+}
+
+static int abov32f2_dflash_set_erase(struct flash_bank *bank, uint32_t pageaddr, enum erase_mode mode)
+{
+	struct target *target = bank->target;
+	int ret = ERROR_OK;
+
+	/* set operation mode */
+    ret = abov32f2_dflash_set_preops(bank);
+	if (ret != ERROR_OK)
+	    goto err;
+
+	/* select erase area mode */
+	switch (mode) {
+		case erase_mode_chip:
+	        target_write_u32(target, DFLASH_CODE_ADDR_REG, DFLASH_CODE_ERASE_CHIP);
+			target_write_u32(target, DFLASH_CODE_CR_REG, DFLASH_CODE_CR_WTIDKY_VAL | FLASH_CODE_CR_OPS_FMA_MODE | FLASH_CODE_CR_ERASE_CHIP);
+			break;
+		default:
+			target_write_u32(target, DFLASH_CODE_ADDR_REG, pageaddr | FLASH_BASE_ADDR);
+			target_write_u32(target, DFLASH_CODE_CR_REG, DFLASH_CODE_CR_WTIDKY_VAL | FLASH_CODE_CR_OPS_FMA_MODE | FLASH_CODE_CR_ERASE_PAGE);
+			break;
+	}
+
+	if (ret != ERROR_OK)
+		goto err;
+
+	/* wait a write is done */
+	ret = abov32f2_dflash_wait_busy(bank, FLASH_ERASE_TIMEOUT);
+	if (ret != ERROR_OK)
+		goto err;
+
+err:
+	return ret;
+}
+
 static int abov32f2_get_chipset_id(struct flash_bank *bank, uint32_t *chipset_id)
 {
 	struct target *target = bank->target;
@@ -284,7 +401,7 @@ static int abov32f2_set_rprotlvl(struct flash_bank *bank, uint32_t lvl)
 
 	if ((reg == lvl) && ((reg & FLASH_RPROT_MASK) == (FLASH_RPROT_LEVEL_0 & FLASH_RPROT_MASK)))
 	{
-		LOG_INFO("read protect level is already set.");
+		LOG_INFO("read protect level 0 is already set.");
 		ret = ERROR_OK;
 	    goto err;
 	}
@@ -302,7 +419,8 @@ static int abov32f2_set_rprotlvl(struct flash_bank *bank, uint32_t lvl)
 	if((reg & FLASH_RPROT_MASK) != (FLASH_RPROT_LEVEL_0 & FLASH_RPROT_MASK))
 	{
 		LOG_INFO("bulk erase, read protect is 0x%x", reg & FLASH_RPROT_MASK);
-		ret = abov32f2_set_erase(bank, FLASH_BASE_ADDR, erase_mode_chip);
+		ret = abov32f2_dflash_set_erase(bank, DFLASH_BASE_ADDR, erase_mode_chip);
+		ret |= abov32f2_set_erase(bank, FLASH_COA_START_ADDR, erase_mode_chip);
 		if (ret != ERROR_OK)
 			goto err;
 	}
@@ -427,6 +545,10 @@ static int abov32f2_set_erase(struct flash_bank *bank, uint32_t pageaddr, enum e
 	/* select erase area mode */
 	switch (mode) {
 		case erase_mode_chip:
+	        if (pageaddr == FLASH_COA_START_ADDR) {
+	            LOG_INFO("set CNF1BEN bit in the BCR register");
+	            target_write_u32(target, FLASH_CODE_COA_BULK_REG, FLASH_CODE_BCR_WTIDKY_VAL | FLASH_CODE_BCR_OPS_COA_PAGE1);
+	        }
 	        target_write_u32(target, FLASH_CODE_ADDR_REG, FLASH_CODE_ERASE_CHIP);
 	        target_write_u32(target, FLASH_CODE_CR_REG, FLASH_CODE_CR_WTIDKY_VAL | FLASH_CODE_CR_OPS_FMA_MODE | FLASH_CODE_CR_ERASE_CHIP);
 			break;
