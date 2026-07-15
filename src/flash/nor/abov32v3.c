@@ -56,6 +56,9 @@
 #define A31C12X_FLASH_16KB				0x311221
 #define A31C11X_FLASH					0x43311100
 #define A31C11X_FLASH_16KB				0x311110
+#define A31C15X_FLASH					0x43311500
+#define A31C15X_FLASH_256KB				0x311560
+#define A31C15X_FLASH_128KB				0x311561
 
 /* A34M42x Serise */
 #define A34M42X_FLASH					0x4D344200
@@ -232,6 +235,14 @@ static const struct abov32v3_device_reg {
 	.stats = (FLASH_CODE_REG_START_ADDR_V1 | FLASH_CODE_STAT_REG_V2)
 }, {
 	.id = A31C11X_FLASH,
+	.cfg = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_CFG_REG_V1),
+	.accs = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_ACCESS_REG_V1),
+	.wprot[0] = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_WPROT0_REG_V1),
+	.wprot[1] = 0,
+	.cntl = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_CTRL_REG_V1),
+	.stats = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_STAT_REG_V1)
+}, {
+	.id = A31C15X_FLASH,
 	.cfg = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_CFG_REG_V1),
 	.accs = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_ACCESS_REG_V1),
 	.wprot[0] = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_WPROT0_REG_V1),
@@ -459,6 +470,34 @@ static const struct abov32v3_dev {
 	.system_size = 0x0,
 	.page_size = 0x200,
 	.wprot_seg_size = 0x800,
+	.erase.support_mode = erase_mode_page | erase_mode_2kb | erase_mode_chip,
+	.erase.chipset_bit = BIT(3),
+	.erase.page_bit = BIT(1),
+	.erase.sector_2kb_bit = BIT(2),
+	.erase.min_sector_by_page_cnt = 4,
+}, {
+	.serise = A31C15X_FLASH,
+	.id = A31C15X_FLASH_256KB,
+	.device_str = "A31C156 : FLASH 256KB / SRAM 32KB",
+	.enable_bit = BIT(25),
+	.code_size = 0x40000,
+	.system_size = 0x0,
+	.page_size = 0x200,
+	.wprot_seg_size = 0x4000,
+	.erase.support_mode = erase_mode_page | erase_mode_2kb | erase_mode_chip,
+	.erase.chipset_bit = BIT(3),
+	.erase.page_bit = BIT(1),
+	.erase.sector_2kb_bit = BIT(2),
+	.erase.min_sector_by_page_cnt = 4,
+}, {
+	.serise = A31C15X_FLASH,
+	.id = A31C15X_FLASH_128KB,
+	.device_str = "A31C154 : FLASH 128KB / SRAM 32KB",
+	.enable_bit = BIT(25),
+	.code_size = 0x20000,
+	.system_size = 0x0,
+	.page_size = 0x200,
+	.wprot_seg_size = 0x2000,
 	.erase.support_mode = erase_mode_page | erase_mode_2kb | erase_mode_chip,
 	.erase.chipset_bit = BIT(3),
 	.erase.page_bit = BIT(1),
