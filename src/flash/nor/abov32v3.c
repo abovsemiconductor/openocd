@@ -72,6 +72,10 @@
 #define A34M71X_FLASH					0x4D347100
 #define A34M71X_FLASH_512KB				0x347180
 
+/* A3T41x Serise */
+#define A31T41X_FLASH					0x54314100
+#define A31T41X_FLASH_64KB				0x314130
+
 #define ABOV_CHIP_ID_MASK				0xFFFFFF
 #define ABOV_CHIP_ID_SERIES_MASK		0xFFFFFF00
 
@@ -249,6 +253,14 @@ static const struct abov32v3_device_reg {
 	.wprot[1] = 0,
 	.cntl = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_CTRL_REG_V1),
 	.stats = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_STAT_REG_V1)
+}, {
+	.id = A31T41X_FLASH,
+	.cfg = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_CFG_REG_V1),
+	.accs = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_ACCESS_REG_V1),
+	.wprot[0] = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_WPROT0_REG_V1),
+	.wprot[1] = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_WPROT1_REG_V1),
+	.cntl = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_CTRL_REG_V2),
+	.stats = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_STAT_REG_V2)
 }};
 
 static const struct abov32v3_dev {
@@ -498,6 +510,20 @@ static const struct abov32v3_dev {
 	.system_size = 0x0,
 	.page_size = 0x200,
 	.wprot_seg_size = 0x2000,
+	.erase.support_mode = erase_mode_page | erase_mode_2kb | erase_mode_chip,
+	.erase.chipset_bit = BIT(3),
+	.erase.page_bit = BIT(1),
+	.erase.sector_2kb_bit = BIT(2),
+	.erase.min_sector_by_page_cnt = 4,
+}, {
+	.serise = A31T41X_FLASH,
+	.id = A31T41X_FLASH_64KB,
+	.device_str = "A31T413 : FLASH 64KB / SRAM 8KB",
+	.enable_bit = BIT(25),
+	.code_size = 0x10000,
+	.system_size = 0x0,
+	.page_size = 0x200,
+	.wprot_seg_size = 0x800,
 	.erase.support_mode = erase_mode_page | erase_mode_2kb | erase_mode_chip,
 	.erase.chipset_bit = BIT(3),
 	.erase.page_bit = BIT(1),
