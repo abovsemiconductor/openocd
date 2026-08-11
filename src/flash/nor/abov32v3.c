@@ -80,6 +80,10 @@
 #define A31T51X_FLASH					0x54315100
 #define A31T51X_FLASH_512KB				0x315180
 
+/* A3T52x Serise */
+#define A31T52X_FLASH					0x54315200
+#define A31T52X_FLASH_512KB				0x315280
+
 #define ABOV_CHIP_ID_MASK				0xFFFFFF
 #define ABOV_CHIP_ID_SERIES_MASK		0xFFFFFF00
 
@@ -267,6 +271,14 @@ static const struct abov32v3_device_reg {
 	.stats = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_STAT_REG_V2)
 }, {
 	.id = A31T51X_FLASH,
+	.cfg = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_CFG_REG_V1),
+	.accs = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_ACCESS_REG_V1),
+	.wprot[0] = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_WPROT0_REG_V1),
+	.wprot[1] = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_WPROT1_REG_V1),
+	.cntl = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_CTRL_REG_V1),
+	.stats = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_STAT_REG_V1)
+}, {
+	.id = A31T52X_FLASH,
 	.cfg = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_CFG_REG_V1),
 	.accs = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_ACCESS_REG_V1),
 	.wprot[0] = (FLASH_CODE_REG_START_ADDR_V2 | FLASH_CODE_WPROT0_REG_V1),
@@ -545,6 +557,20 @@ static const struct abov32v3_dev {
 	.serise = A31T51X_FLASH,
 	.id = A31T51X_FLASH_512KB,
 	.device_str = "A31T518 : FLASH 512KB / SRAM 64KB",
+	.enable_bit = BIT(25),
+	.code_size = 0x80000,
+	.system_size = 0x0,
+	.page_size = 0x200,
+	.wprot_seg_size = 0x8000,
+	.erase.support_mode = erase_mode_page | erase_mode_2kb | erase_mode_chip,
+	.erase.chipset_bit = BIT(3),
+	.erase.page_bit = BIT(1),
+	.erase.sector_2kb_bit = BIT(2),
+	.erase.min_sector_by_page_cnt = 4,
+}, {
+	.serise = A31T52X_FLASH,
+	.id = A31T52X_FLASH_512KB,
+	.device_str = "A31T528 : FLASH 512KB / SRAM 64KB",
 	.enable_bit = BIT(25),
 	.code_size = 0x80000,
 	.system_size = 0x0,
