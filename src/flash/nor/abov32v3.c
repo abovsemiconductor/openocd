@@ -16,6 +16,7 @@
 #include "imp.h"
 #include <helper/binarybuffer.h>
 #include <helper/bits.h>
+#include <helper/time_support.h>
 #include <target/algorithm.h>
 #include <target/armv7m.h>
 
@@ -137,7 +138,7 @@
 
 #define FLASH_CODE_PROT_LOCK			0x00000001
 #define FLASH_CODE_PROT_UNLOCK			0x00000000
-#define FLASH_CODE_ERASE_TIMEOUT		100
+#define FLASH_CODE_ERASE_TIMEOUT_MS		5000
 
 #define FLASH_ENABLE					0x00000001
 #define FLASH_DISABLE					0x00000000
@@ -164,7 +165,9 @@
 #define SYSTEM_ACCESS_KEY_2				0x00000075
 
 /* Reg parameter count */
-#define OPENOCD_REG_PARAMS_CNT			5
+#define OPENOCD_REG_PARAMS_CNT			4
+#define FLASH_CODE_PROGRAM_TIMEOUT_MS	10000
+#define FLASH_CODE_MIN_BUF_SIZE			0x100
 
 enum erase_mode {
 	erase_mode_page		=	BIT(0),
@@ -672,6 +675,7 @@ static int abov32v3_wait_busy(struct flash_bank *bank, int timeout)
 	struct abov32v3_flash_bank *abov32v3_info = bank->driver_priv;
 	struct target *target = bank->target;
 	uint32_t busy = 0;
+	int64_t start = timeval_ms();
 
 	while (1) {
 		int ret = target_read_u32(target, abov32v3_info->reg->stats, &busy);
@@ -681,8 +685,9 @@ static int abov32v3_wait_busy(struct flash_bank *bank, int timeout)
 		if (!(busy & FLASH_CODE_STAT_WBUSY))
 			break;
 
-		if (timeout-- <= 0)
+		if (timeval_ms() - start > timeout)
 			return ERROR_TIMEOUT_REACHED;
+		keep_alive();
 	}
 
 	return ERROR_OK;
@@ -868,7 +873,7 @@ static int abov32v3_set_erase(struct flash_bank *bank, uint32_t pageaddr, enum e
 		goto err;
 
 	/* wait a write is done */
-	ret = abov32v3_wait_busy(bank, FLASH_CODE_ERASE_TIMEOUT);
+	ret = abov32v3_wait_busy(bank, FLASH_CODE_ERASE_TIMEOUT_MS);
 	if (ret != ERROR_OK)
 		goto err;
 
@@ -1033,7 +1038,7 @@ static int abov32v3_set_write(struct flash_bank *bank, const uint8_t *buffer, ui
 
 	int ret = ERROR_OK;
 	uint32_t addr = 0;
-	uint32_t bufsize = 1024;
+	uint32_t bufsize = count;
 
 	static const uint8_t abov32v3_algo_code[] = {
 #include "../../../contrib/loaders/flash/abovsemi/abov32v3.inc"
@@ -1075,38 +1080,57 @@ static int abov32v3_set_write(struct flash_bank *bank, const uint8_t *buffer, ui
 		goto err;
 	}
 
-	ret = target_alloc_working_area(target, bufsize, &imgbuffer);
-	if (ret != ERROR_OK) {
-		target_free_working_area(target, algobuffer);
-		goto err;
+	/* use as much of the remaining working area as possible to reduce the number of algorithm runs */
+	uint32_t avail = target_get_working_area_avail(target) & ~FLASH_WORD_ALIGN_MASK;
+	if (bufsize > avail)
+		bufsize = avail;
+
+	while (bufsize == 0 || target_alloc_working_area_try(target, bufsize, &imgbuffer) != ERROR_OK) {
+		bufsize = (bufsize / 2) & ~FLASH_WORD_ALIGN_MASK;
+		if (bufsize < FLASH_CODE_MIN_BUF_SIZE) {
+			LOG_ERROR("not enough working area for the flash write buffer");
+			target_free_working_area(target, algobuffer);
+			ret = ERROR_TARGET_RESOURCE_NOT_AVAILABLE;
+			goto err;
+		}
 	}
 
 	armv7m_method.common_magic = ARMV7M_COMMON_MAGIC;
 	armv7m_method.core_mode = ARM_MODE_THREAD;
 
 	init_reg_param(&reg_params[0], "r0", 32, PARAM_OUT);	/* data length */
-	init_reg_param(&reg_params[1], "r1", 32, PARAM_OUT);	/* working memory start address */
-	init_reg_param(&reg_params[2], "r2", 32, PARAM_OUT);	/* working memory end address */
-	init_reg_param(&reg_params[3], "r3", 32, PARAM_IN_OUT);	/* flash register start address */
-	init_reg_param(&reg_params[4], "r4", 32, PARAM_IN_OUT);	/* destination flash address */
+	init_reg_param(&reg_params[1], "r1", 32, PARAM_OUT);	/* source data address */
+	init_reg_param(&reg_params[2], "r3", 32, PARAM_OUT);	/* flash status register address */
+	init_reg_param(&reg_params[3], "r4", 32, PARAM_OUT);	/* destination flash address */
 
-	buf_set_u32(reg_params[0].value, 0, 32, count);		/* algo code decrement 4 count */
-	buf_set_u32(reg_params[1].value, 0, 32, imgbuffer->address);
-	buf_set_u32(reg_params[2].value, 0, 32, imgbuffer->address + imgbuffer->size);
-	buf_set_u32(reg_params[3].value, 0, 32, abov32v3_info->reg->stats);
-	buf_set_u32(reg_params[4].value, 0, 32, addr);
+	/* the target is halted while data is loaded, and only runs while flash is being programmed */
+	while (count > 0) {
+		uint32_t chunk = (count > bufsize) ? bufsize : count;
 
-	ret = target_run_flash_async_algorithm(target, buffer, (count / FLASH_WORD_COUNT), FLASH_WORD_COUNT, 0, NULL,
-			OPENOCD_REG_PARAMS_CNT, reg_params, imgbuffer->address, imgbuffer->size, algobuffer->address, 0, &armv7m_method);
+		ret = target_write_buffer(target, imgbuffer->address, chunk, buffer);
+		if (ret != ERROR_OK)
+			break;
+
+		buf_set_u32(reg_params[0].value, 0, 32, chunk);
+		buf_set_u32(reg_params[1].value, 0, 32, imgbuffer->address);
+		buf_set_u32(reg_params[2].value, 0, 32, abov32v3_info->reg->stats);
+		buf_set_u32(reg_params[3].value, 0, 32, addr);
+
+		ret = target_run_algorithm(target, 0, NULL, OPENOCD_REG_PARAMS_CNT, reg_params,
+				algobuffer->address, 0, FLASH_CODE_PROGRAM_TIMEOUT_MS, &armv7m_method);
+		if (ret != ERROR_OK)
+			break;
+
+		buffer += chunk;
+		addr += chunk;
+		count -= chunk;
+	}
 
 	target_free_working_area(target, imgbuffer);
 	target_free_working_area(target, algobuffer);
 
-	destroy_reg_param(&reg_params[0]);
-	destroy_reg_param(&reg_params[1]);
-	destroy_reg_param(&reg_params[2]);
-	destroy_reg_param(&reg_params[3]);
-	destroy_reg_param(&reg_params[4]);
+	for (unsigned int i = 0; i < OPENOCD_REG_PARAMS_CNT; i++)
+		destroy_reg_param(&reg_params[i]);
 
 err:
 	/* clear control reg */
@@ -1189,7 +1213,7 @@ static int abov32v3_probe(struct flash_bank *bank)
 
 	/* some chipsets need to enable register write function */
 	if (abov32v3_info->dev->enable_bit) {
-		ret = abov32v3_set_clear_reg(bank, abov32v3_info->reg->cfg, abov32v3_info->dev->enable_bit, FLASH_ENABLE);
+		ret = abov32v3_set_clear_reg(bank, abov32v3_info->reg->cfg, abov32v3_info->dev->enable_bit, abov32v3_info->dev->enable_bit);
 		if (ret != ERROR_OK)
 			goto err;
 	}
